@@ -1,5 +1,5 @@
 // bpftool btf dump file /sys/kernel/btf/vmlinux format c
-#include "vmlinux.h"
+#include "include/vmlinux.h"
 
 // from kernel tools/lib/bpf/
 #include "bpf/bpf_helpers.h"

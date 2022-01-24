@@ -2,6 +2,9 @@
 set -e
 
 cd ..
+
+bpftool btf dump file /sys/kernel/btf/vmlinux format c > include/vmlinux.h-`uname -r`
+
 for i in `ls include/vmlinux.h-*-generic`
 do
 	VERSION=${i:18}

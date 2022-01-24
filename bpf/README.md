@@ -2,12 +2,6 @@
 
     docker build -t ebpf-build:latest .
 
-# Prepare the ebpf object build to match the target kernel
-
-## on target HV run:
-   bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h-`uname -r`
-## copy the resulting vmlinux file to bpf/include and symlink it as vmlinux.h
-
 # Run the Dockerfile
 
 ## Build all the eBPF programs:
@@ -16,6 +10,7 @@
 
 ## or to build a specific eBPF:
 
+    bpftool btf dump file /sys/kernel/btf/vmlinux format c > include/vmlinux.h-`uname -r`
     create vmlinux.h symlink under include/
     docker run -v $(pwd)/bpf:/bpf -it ebpf-build
 

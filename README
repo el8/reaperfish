@@ -1,3 +1,9 @@
+INSTALL
+
+install: docker
+adduser myusername docker
+install: linux-tools-common (bpftool)
+
 To use the Makefile put the following in docode/bin/build.sh:
 
 #!/bin/bash

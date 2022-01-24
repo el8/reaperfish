@@ -1,6 +1,6 @@
 all: build fix
 
-OBJS = reaper-log.bpf.o reaper-hist.bpf.o reaper-h14s.bpf.o
+OBJS = reaper-log.bpf.o reaper-hist.bpf.o
 build: $(OBJS)
 
 $(OBJS):  %.o:%.c
@@ -20,7 +20,6 @@ $(OBJS):  %.o:%.c
 fix:
 	llvm-strip reaper-log.bpf.o --no-strip-all -R .BTF
 	llvm-strip reaper-hist.bpf.o --no-strip-all -R .BTF
-	llvm-strip reaper-h14s.bpf.o --no-strip-all -R .BTF
 
 clean:
 	@rm $(OBJS)
