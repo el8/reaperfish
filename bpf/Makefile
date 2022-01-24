@@ -1,8 +1,5 @@
 all: build fix
 
-USER=jglauber
-TARGETS=s2r5node68.s2r5.internal.digitalocean.com
-
 OBJS = reaper-log.bpf.o reaper-hist.bpf.o reaper-h14s.bpf.o
 build: $(OBJS)
 
@@ -27,8 +24,3 @@ fix:
 
 clean:
 	@rm $(OBJS)
-
-install:
-	@for target in $(TARGETS); do \
-                scp -o "ProxyCommand ssh $(USER)@s2-jump -W %h:%p" $(OBJS) $(USER)@$$target:;\
-        done
