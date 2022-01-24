@@ -1,6 +1,6 @@
 all: build fix
 
-OBJS = reaper-log.bpf.o reaper-hist.bpf.o
+OBJS = reaper-log.bpf.o #reaper-hist.bpf.o
 build: $(OBJS)
 
 $(OBJS):  %.o:%.c
@@ -10,7 +10,8 @@ $(OBJS):  %.o:%.c
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option \
-		-I ./include -O2 -emit-llvm \
+		-I ./include -I /libbpf/src/root/usr/include \
+		-O2 -emit-llvm \
 		-c -g $< -o -| llc -march=bpf -filetype=obj -o $@
 	llvm-strip -g $@
 
@@ -18,7 +19,7 @@ $(OBJS):  %.o:%.c
 # https://github.com/cilium/ebpf/issues/43
 fix:
 	llvm-strip reaper-log.bpf.o --no-strip-all -R .BTF
-	llvm-strip reaper-hist.bpf.o --no-strip-all -R .BTF
+#	llvm-strip reaper-hist.bpf.o --no-strip-all -R .BTF
 
 clean:
 	@rm $(OBJS)

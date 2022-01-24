@@ -1,3 +1,5 @@
+o build with uid/gid to prevent objects belonging to root?
+
 Try to support kernel invariants (5.4, 5.10, 5.10+)
 
 o bi_disk is replaced by struct block_device *bi_bdev 309dca309fc39a9e3c31b916393b74bd174fd74e after 5.9

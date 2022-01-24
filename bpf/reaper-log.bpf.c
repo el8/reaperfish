@@ -194,13 +194,13 @@ struct bpf_map_def SEC("maps/bio_len") bio_len = {
 	.max_entries = MAX_ENTRIES,
 };
 
+// bi_disk is replaced by struct block_device *bi_bdev
+// 309dca309fc39a9e3c31b916393b74bd174fd74e
+// after 5.11
 static __always_inline
 int disk_traced(struct bio *bio)
 {
 	u32 major, minor;
-	// bi_disk is replaced by struct block_device *bi_bdev
-	// 309dca309fc39a9e3c31b916393b74bd174fd74e
-	// after 5.11
 	struct block_device *bdev;
 	struct gendisk *disk;
 //if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(5, 11, 0)) {
@@ -213,14 +213,8 @@ int disk_traced(struct bio *bio)
 //		disk = BPF_CORE_READ(bdev, bd_disk);
 //	else
 //		disk = BPF_CORE_READ(bio, bi_disk);
-#if defined KERNEL_VERSION_510
-	disk = BPF_CORE_READ(bio, bi_disk);
-#elif defined KERNEL_VERSION_512
 	bdev = BPF_CORE_READ(bio, bi_bdev);
 	disk = BPF_CORE_READ(bdev, bd_disk);
-#else
-#error "Need to define a supported kernel version."
-#endif
 
 	major = BPF_CORE_READ(disk, major);
 	minor = BPF_CORE_READ(disk, first_minor);
@@ -240,17 +234,9 @@ int disk_traced(struct bio *bio)
  * pointer instead.
  */
 
-/*
- * struct request_queue was removed after 5.10
- * include/vmlinux.h-5.10.42-1-generic:typedef void (*btf_trace_block_bio_queue)(void *, struct request_queue *, struct bio *);
- * include/vmlinux.h-5.12.0-jang+:typedef void (*btf_trace_block_bio_queue)(void *, struct bio *);
- */
+// struct request_queue was removed after 5.10 from trace_block_bio_queue
 SEC("raw_tracepoint/block_bio_queue")
-#ifdef KERNEL_VERSION_512
 int BPF_PROG(trace_bio_start, struct bio *bio)
-#else
-int BPF_PROG(trace_bio_start, struct request_queue *q, struct bio *bio)
-#endif
 {
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
@@ -271,14 +257,7 @@ int BPF_PROG(trace_bio_start, struct request_queue *q, struct bio *bio)
 	return 0;
 }
 
-/*
- * XXX error argument got removed, need to deal with both variants for 5.4
- * commit d24de76af836260a99ca2ba281a937bd5bc55591
- * Folgt auf: v5.7
- * Vorgänger von: v5.8-rc1
- *
- * block: remove the error argument to the block_bio_complete tracepoint
- */
+// error argument got removed by commit d24de76af836260a99ca2ba281a937bd5bc55591 in 5.8
 SEC("raw_tracepoint/block_bio_complete")
 int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 {
@@ -299,8 +278,11 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 		goto cleanup;
 	}
 
+	struct block_device *bdev;
 	struct gendisk *disk;
-	disk = BPF_CORE_READ(bio, bi_disk);
+        bdev = BPF_CORE_READ(bio, bi_bdev);
+        disk = BPF_CORE_READ(bdev, bd_disk);
+
 	bpf_probe_read_kernel_str(&data.disk_name, sizeof(data.disk_name), disk->disk_name);
 	data.major = BPF_CORE_READ(disk, major);
 	data.minor = BPF_CORE_READ(disk, first_minor);
@@ -373,24 +355,9 @@ int BPF_PROG(trace_bio_remap, struct request_queue *q, struct bio *bio, dev_t de
 
 	struct block_device *bdev;
 	struct gendisk *disk;
-//if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(5, 11, 0)) {
-//	bdev = BPF_CORE_READ(bio, bi_bdev);
-//	disk = BPF_CORE_READ(bdev, bd_disk);
-//} else {
-//}
-//	bdev = bpf_core_field_exists(bio->bi_bdev) ? BPF_CORE_READ(bio, bi_bdev) : NULL;
-//	if (!bdev)
-//		disk = BPF_CORE_READ(bdev, bd_disk);
-//	else
-//		disk = BPF_CORE_READ(bio, bi_disk);
-#if defined KERNEL_VERSION_510
-	disk = BPF_CORE_READ(bio, bi_disk);
-#elif defined KERNEL_VERSION_512
+
 	bdev = BPF_CORE_READ(bio, bi_bdev);
 	disk = BPF_CORE_READ(bdev, bd_disk);
-#else
-#error "Need to define a supported kernel version."
-#endif
 
 	bpf_probe_read_kernel_str(&data.disk_name, sizeof(data.disk_name), disk->disk_name);
 	data.major = BPF_CORE_READ(disk, major);

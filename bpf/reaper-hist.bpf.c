@@ -2,9 +2,9 @@
 #include "include/vmlinux.h"
 
 // from kernel tools/lib/bpf/
-#include "bpf/bpf_helpers.h"
-#include "bpf/bpf_core_read.h"
-#include "bpf/bpf_tracing.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
+#include <bpf/bpf_tracing.h>
 
 #include <linux/version.h>
 extern int LINUX_KERNEL_VERSION __kconfig;
