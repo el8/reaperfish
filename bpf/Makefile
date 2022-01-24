@@ -5,7 +5,6 @@ build: $(OBJS)
 
 $(OBJS):  %.o:%.c
 	clang -D__KERNEL__ -D__ASM_SYSREG_H \
-		-DKERNEL_VERSION_510 \
 		-Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-unknown-attributes \
 		-Wno-int-to-void-pointer-cast -Wno-implicit-function-declaration -Wno-int-conversion \
 		-Wno-gnu-variable-sized-type-not-at-end \
