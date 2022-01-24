@@ -1,0 +1,44 @@
+Reaperfish TODO's 
+~~~~~~~~~~~~~~~~~~~~~~~~
+in no particular order
+
+"not coding yourself into a corner" - Nish :)
+
+- kworker threads / pagecache IO tracking (similar to existing HV services, required to see HV services)
+  -> should be "fixed" by outer bio tracing, verify
+- detect / deal with manual outside reset of sysfs cgroup values
+- different sort's like most BW
+- kick-in (throttling) when /proc/diskstat latency too high
+- throttle limits need to be CTRL-C / crash safe (only when RF runs as service)
+- BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
+  maybe add to trace_req_start()
+
+o Histograms
+  in-kernel BPF histogram aggregation passing histogram data to user-space (keeping direct event passing as a separate option)
+  histograms: not dynamic range because not comparable, buckets can be non-linear though
+  latency by blocksizes
+
+o Prometheus support
+  Storing latency values in prometheus.
+  From RF command (info command) query disk latency history for devices
+
+o Throttling algorithm
+  -> blk iocost
+
+o QEMU tracing
+  attach bpf (like systemtap / uprobes) to qemu?
+
+o Testing/Verification
+  Testsuite to verify measured values against fio probe
+  (more) plausibility checks at runtime (some are already in place)
+
+o info command
+
+o upstream
+  decide on minimal kernel version to support, 5.10+?
+  improve kernel version logic in BPF code
+  document build and run-time dependencies
+  add switch for vm-mode and default to process-mode
+  redo services stuff (monitor and display all non-zero)
+  add BTF runtime or kernel version check
+  stand-alone golang part (without cthulhuh)
