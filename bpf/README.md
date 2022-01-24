@@ -12,8 +12,11 @@
 
     bpftool btf dump file /sys/kernel/btf/vmlinux format c > include/vmlinux.h-`uname -r`
     create vmlinux.h symlink under include/
+
+    (run from reaperfish/)
     docker run -v $(pwd)/bpf:/bpf -it ebpf-build
 
 ## To get a shell:
 
+    (run from reaperfish/)
     docker run -v $(pwd)/bpf:/bpf -it ebpf-build /bin/bash
