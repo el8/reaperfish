@@ -264,11 +264,11 @@ func run_bpf_log() {
 		for {
 			record, err := rd.Read()
 			if err != nil {
-				if perf.IsClosed(err) {
-					log.Println("Received signal, exiting..")
+				//if perf.IsClosed(err) {
+				//	log.Println("Received signal, exiting..")
 					//panic(err)
-					break
-				}
+				//	break
+				//}
 				log.Fatalf("error reading from reader: %s", err)
 			}
 			//if optDebug {
@@ -611,7 +611,7 @@ func GetDropletIDs() (error) {
 
 	dirsCgroup, err := ioutil.ReadDir(basedirCgroupD)
 	if err != nil {
-		logger.Err(err).Error("blkio cgroup is not configured")
+		fmt.Fprintf(os.Stderr, "blkio cgroup is not configured")
 		return err
 	}
 
@@ -625,7 +625,7 @@ func GetDropletIDs() (error) {
 		// Cut droplet-ID from machine-qemu\x2d8146\x2dDroplet\x2d3949745.scope
 		ID, err := strconv.ParseInt(strings.Split(strings.TrimPrefix(dirCgroup.Name(), "machine-qemu\\x2d"), "\\x2dDroplet")[0], 10, 64)
 		if err != nil {
-			logger.Err(err).Error("unknown dir")
+			fmt.Fprintf(os.Stderr, "unknown dir")
 			continue
 		}
 		id := int(ID)
@@ -1759,7 +1759,7 @@ func DetectPartition() (error) {
 }
 
 func Startup() (error) {
-	logger.Info("Reaper started")
+	fmt.Fprintf(os.Stderr, "Reaper started")
 
 	flag.BoolVar(&optMonitor, "monitor-only", true, "Monitor only without bandwidth throttling")
 	flag.BoolVar(&optProbe, "probe", false, "Run bandwidth probing")

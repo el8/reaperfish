@@ -1,3 +1,5 @@
-all: subdirs
+all: build-go
 
-todo
+build-go:
+	go build -o build/reaper src/go/reaper.go
+
