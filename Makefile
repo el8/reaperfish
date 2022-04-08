@@ -5,7 +5,7 @@ SHELL=/bin/bash
 UID := $(shell id -u)
 GID := $(shell id -g)
 
-SOURCE="src/git-trees/reaperfish/src/reaper"
+SOURCE="src/git-trees/reaperfish/src"
 SCRIPT="src/git-trees/reaperfish/script"
 
 build:

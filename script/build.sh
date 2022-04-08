@@ -8,7 +8,7 @@ export GO111MODULE=auto
 export GOFLAGS=-mod=vendor
 #export PATH="${GOPATH}/bin:${PATH}"
 
-go build cmd/reaper
+go build reaper.go
 if [ $? -eq 0 ]; then
         echo -e "\e[32mSuccess\e[0m"
 else
