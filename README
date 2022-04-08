@@ -1,8 +1,9 @@
-INSTALL
+Installation instructions
+------------------------
 
-install: docker
-adduser myusername docker
-install: linux-tools-common (bpftool)
+sudo apt install docker.io clang libbpf-dev
+sudo adduser myuser docker
+sudo apt install linux-tools-common (for bpftool)
 
 To use the Makefile put the following in docode/bin/build.sh:
 

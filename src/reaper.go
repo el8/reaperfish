@@ -1,4 +1,4 @@
-package reaper
+package main
 
 import (
 	"bufio"
@@ -1954,4 +1954,8 @@ func Startup() (error) {
 	}
 	CleanupFio()
 	return nil
+}
+
+func main() {
+	Startup()
 }
