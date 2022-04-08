@@ -1,10 +1,7 @@
 package main
 
 import (
-
-	"do/doge/log"
-	//"do/doge/version"
-	"do/teams/systems/reaper"
+	"reaper"
 )
 
 var logger = log.KV("module", "reaper_main")
