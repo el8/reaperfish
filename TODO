@@ -1,36 +1,44 @@
 Reaperfish TODO's 
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+Bugs
+----
 - kworker threads / pagecache IO tracking (similar to existing HV services, required to see HV services)
   -> should be "fixed" by outer bio tracing, verify
-- different sort's like most BW
 - BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
   maybe add to trace_req_start()
 
-o Histograms
-  in-kernel BPF histogram aggregation passing histogram data to user-space (keeping direct event passing as a separate option)
-  histograms: not dynamic range because not comparable, buckets can be non-linear though
-  latency by blocksizes
 
-o QEMU tracing
-  attach bpf (like systemtap / uprobes) to qemu?
+Feats
+-----
+- ncurses / notcurses GUI
+- different sort's like most BW
+- histogram/percentiles and log mode
+- document all build and run-time dependencies
+- vm-mode and process-mode (default), command line switch
+- topology detection & command line switches, RAID detection logic
+- runnable on laptop and HVs!
+- minimize golang dependecies or re-write golang in C ?
+- fancy graphs
 
-o Testing/Verification
+
+BPF
+---
+- decide on minimal kernel version to support, 5.10+? focal? and required dependencies (libbpf),
+- improve kernel version logic in BPF code
+- add BTF runtime or kernel version check
+- build with uid/gid to prevent objects belonging to root?
+- Try to support kernel invariants (5.4, 5.10, 5.10+)
+- bi_disk is replaced by struct block_device *bi_bdev 309dca309fc39a9e3c31b916393b74bd174fd74e after 5.9
+- block_bio_complete: error argument got removed, need to deal with both variants for 5.4
+  commit d24de76af836260a99ca2ba281a937bd5bc55591
+  Folgt auf: v5.7, Vorgänger von: v5.8-rc1
+  block: remove the error argument to the block_bio_complete tracepoint
+
+
+Long-term
+---------
+- QEMU tracing, attach bpf (like systemtap / uprobes) to qemu?
+- Testing/Verification
   Testsuite to verify measured values against fio probe
   (more) plausibility checks at runtime (some are already in place)
-
-o upstream:
-  decide on minimal kernel version to support, 5.10+? focal? and required dependencies (libbpf),
-  document build and run-time dependencies
-  
-  improve kernel version logic in BPF code
-
-  vm-mode and process-mode (default), command line switch
-
-  add BTF runtime or kernel version check
-
-  topology detection & command line switches, RAID detection logic
-
-  runnable on laptop and HVs!
-
-  minimize golang dependecies or re-write golang in C ?
