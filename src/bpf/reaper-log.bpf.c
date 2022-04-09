@@ -147,11 +147,16 @@ int BPF_KPROBE(trace_req_done, struct request *req)
 
 	}
 
-	struct gendisk *rq_disk = BPF_CORE_READ(req, rq_disk);
-	bpf_probe_read_kernel_str(&data.disk_name, sizeof(data.disk_name),
-				rq_disk->disk_name);
-	data.major = BPF_CORE_READ(req, rq_disk, major);
-	data.minor = BPF_CORE_READ(req, rq_disk, first_minor);
+	struct bio *bio;
+	struct block_device *bdev;
+	struct gendisk *disk;
+	bio = BPF_CORE_READ(req, bio);
+	bdev = BPF_CORE_READ(bio, bi_bdev);
+	disk = BPF_CORE_READ(bdev, bd_disk);
+
+	bpf_probe_read_kernel_str(&data.disk_name, sizeof(data.disk_name), disk->disk_name);
+	data.major = BPF_CORE_READ(disk, major);
+	data.minor = BPF_CORE_READ(disk, first_minor);
 
 	lenp = bpf_map_lookup_elem(&req_len, &req);
 	if (!lenp) {
@@ -241,8 +246,8 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
 
-	if (!disk_traced(bio))
-		return 0;
+	//if (!disk_traced(bio))
+	//	return 0;
 
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
@@ -288,9 +293,9 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	data.minor = BPF_CORE_READ(disk, first_minor);
 
 	// drop everything that is not lvm/dm. Should not happen as these will fail on tsp already.
-	if (data.major != 253) {
-		goto cleanup; // might be redundant with !tsp check above
-	}
+	//if (data.major != 253) {
+	//	goto cleanup; // might be redundant with !tsp check above
+	//}
 
 	delta = now - *tsp;
 	delta /= 1000;

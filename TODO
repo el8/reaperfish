@@ -12,6 +12,7 @@ Bugs
 - try BPF code with -Wall and remove warnings
 - Fix golang printf mess with my own wrapper
 - droplet -> VM
+- make BPF lookup dir use absolute path and look for it in same dir as golang executable
 
 
 Feats
