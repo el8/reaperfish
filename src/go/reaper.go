@@ -571,6 +571,9 @@ var total_events uint64
 var CSV_File string = "reaper.csv"
 //var CSV *os.File
 
+// do we have any virtual machines running?
+var noVMs bool = true
+
 // cgroupv1 vs. cgroupv2 configuration
 var cgroupVersion int
 var basedirCgroupVM string
@@ -598,7 +601,6 @@ func ConfigureCgroupVars() (error) {
 	*/
 		// cgroupv2 based configuration
 		cgroupVersion = 2
-		basedirCgroupVM = "/sys/fs/cgroup/machine.slice/"
 		basedirCgroupHV = "/sys/fs/cgroup/system.slice/"
 		blkioServiceBytes = "io.stat"
 		blkioServiced = "io.stat"
@@ -606,6 +608,14 @@ func ConfigureCgroupVars() (error) {
 		blkioThrottleWrites = "io.max"
 		fmt.Fprintf(os.Stderr, "cgroupv2 assumed\n")
 	//}
+
+	if _, err := os.Stat("/sys/fs/cgroup/machine.slice"); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "No virtual machines detected\n")
+	} else {
+		basedirCgroupVM = "/sys/fs/cgroup/machine.slice/"
+		noVMs = false
+		fmt.Fprintf(os.Stderr, "Virtual machines detected\n")
+	}
 	return nil
 }
 
@@ -1431,6 +1441,10 @@ func GetDropletData() error {
 }
 
 func ParseDroplets() (error) {
+	if noVMs == true {
+		return nil
+	}
+
 	err := GetDropletIDs()
 	if err != nil {
 		return err
