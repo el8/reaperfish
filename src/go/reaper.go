@@ -515,7 +515,6 @@ type process_info struct {
 	last			traffic
 	lat			latency
 	usable			bool
-	throttled		bool
 	scanned			bool
 	lat_read_avg		uint64		// last interval read latency
 	lat_write_avg		uint64		// last interval write latency
@@ -588,10 +587,6 @@ func ConfigureCgroupVars() (error) {
 		cgroupVersion = 1
 		basedirCgroupVM = "/sys/fs/cgroup/blkio/machine.slice/"
 		basedirCgroupHV = "/sys/fs/cgroup/blkio/system.slice/"
-		blkioServiceBytes = "/blkio.throttle.io_service_bytes"
-		blkioServiced = "/blkio.throttle.io_serviced"
-		blkioThrottleReads = "/blkio.throttle.read_bps_device"
-		blkioThrottleWrites = "/blkio.throttle.write_bps_device"
 		fmt.Fprintf(os.Stderr, "cgroupv1 detected\n")
 	} else {
 	*/
@@ -896,17 +891,6 @@ func ReadIOThrottleFile(base, prefix string, suffix string) (uint64, error) {
 		}
 	}
 	return 0, sc.Err()
-}
-
-func WriteIOThrottleFile(base, prefix string, suffix string, limit string) (error) {
-	var data []byte = []byte(limit)
-
-	path := filepath.Join(base, prefix, suffix)
-
-	if optDebug {
-		fmt.Fprintf(os.Stderr, "debug: writing file: %s  val: %s\n", path, limit)
-	}
-	return ioutil.WriteFile(path, data, 0666)
 }
 
 func ReadPIDFile(base, prefix string, suffix string) (int, error) {
@@ -1537,72 +1521,7 @@ func SleepInterruptible() {
 	}
 }
 
-func UnthrottleDroplet(pid int) (error) {
-	s := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, 0)
-
-	err := WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleReads, s)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
-	}
-
-	err = WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleWrites, s)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
-	}
-	fmt.Fprintf(os.Stderr, "debug: untrottled droplet # %d\n", pinfo[pid].ID)
-	return nil
-}
-
-func UnthrottleAllDroplets() {
-	for _, d := range pinfo {
-		if d.throttled == true {
-			UnthrottleDroplet(d.pid)
-			d.throttled = false
-		}
-	}
-}
-
-func InitUnthrottleAllDroplets() {
-	fmt.Fprintf(os.Stderr, "Initially removing all droplet throttle limits\n")
-	for _, d := range pinfo {
-		limit_rd, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleReads)
-		if err != nil {
-			continue
-		}
-		limit_wr, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleWrites)
-		if err != nil {
-			continue
-		}
-		if limit_rd != 0 || limit_wr != 0 {
-			UnthrottleDroplet(d.pid)
-		}
-	}
-}
-
-// TODO: treat read/write separately
-//   doesn't help with the TPCC - fio testcase (many fio's with lower bandwidth then TPCC
-func ThrottleDroplet(pid int) {
-	limit_read := 100000000		// 100 MB/s
-	limit_write := 100000000
-
-	sr := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_read)
-	sw := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_write)
-
-	err := WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleReads, sr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
-	}
-
-	err = WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleWrites, sw)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
-	}
-
-	fmt.Fprintf(os.Stderr, "info: throttled droplet # %d to %d/%d bps\n", pinfo[pid].ID, limit_read, limit_write)
-	pinfo[pid].throttled = true
-}
-
-// check IOPS for droplets and pick one droplet to throttle
+// check IOPS for droplets 
 func PickVictim() {
 	var max_ios uint64
 	var pid int
@@ -1617,7 +1536,6 @@ func PickVictim() {
 		}
 	}
 	fmt.Fprintf(os.Stderr, "info: droplet doing most IO is: %d with: %d\n", pinfo[pid].ID, max_ios)
-	ThrottleDroplet(pid)
 }
 
 // detect latency-violation, call for action
@@ -1646,17 +1564,10 @@ func CheckLatencyTarget() {
 			fmt.Fprintf(os.Stderr, "info: droplet-IOPS too low (%d), not throttling\n", ios)
 		}
 	}
-
-	// remove existing throttles as latency is OK
-	UnthrottleAllDroplets()
 }
 
 func PrintIOLimits() {
 	for _, d := range pinfo {
-		if d.throttled {
-			fmt.Fprintf(os.Stderr, "droplet #%d is throttled\n", d.ID)
-		}
-
 		limit_rd, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleReads)
 		if err != nil {
 			continue
@@ -1737,10 +1648,6 @@ func main() {
 
 	if optTraceReq && optTraceBio {
 		fmt.Fprintf(os.Stderr, "Info: Both -trace-req and -trace-bio selected\n")
-	}
-
-	if !optMonitor {
-		InitUnthrottleAllDroplets()
 	}
 
 	if optCSV {
@@ -1840,9 +1747,5 @@ func main() {
 
 	if optColor {
 		fmt.Println(string(bgReset) + string(Reset))
-	}
-
-	if !optMonitor {
-		UnthrottleAllDroplets()
 	}
 }
