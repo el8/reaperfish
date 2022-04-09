@@ -3,6 +3,11 @@ all: build fix
 OBJS = reaper-log.bpf.o #reaper-hist.bpf.o
 build: $(OBJS)
 
+# clang -O2 -g -Wall -target bpf -emit-llvm -c reaper-log.bpf.c -o reaper.bc
+# llc reaper.bc -march=bpf -mattr=dwarfris -filetype=obj -o reaper.o
+
+
+
 $(OBJS):  %.o:%.c
 	clang -D__KERNEL__ -D__ASM_SYSREG_H \
 		-Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-unknown-attributes \
@@ -11,8 +16,9 @@ $(OBJS):  %.o:%.c
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option \
 		-I ./include -I /libbpf/src/root/usr/include \
-		-O2 -emit-llvm \
-		-c -g $< -o -| llc -march=bpf -filetype=obj -o $@
+		-O2 -target bpf -emit-llvm \
+		-g \
+		-c $< -o -| llc -march=bpf -mattr=dwarfris -filetype=obj -o $@
 	llvm-strip -g $@
 
 # workaround for: panic: program ...: load BTF: invalid argument: magic: 0xeb9f
