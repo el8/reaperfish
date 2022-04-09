@@ -12,7 +12,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"os/signal"
 	"os/user"
 	"path/filepath"
@@ -56,10 +55,7 @@ type ioEvent struct {
 }
 
 var optMonitor		bool
-var optProbe		bool
-var optKeepProbeFiles	bool
 var optLogEvents	bool
-var optLogProbe		bool
 var optDebug		bool
 var optTraceReq		bool
 var optTraceBio		bool
@@ -1458,81 +1454,6 @@ func ParseDroplets() (error) {
 	return err
 }
 
-var fio_path string = "/var/lib/libvirt/images/fio"
-var fio_path_data string = fio_path + "/test"
-
-func RunFio(iops int, factor int, silent bool, write bool) () {
-	parallel := 32
-	size := (iops / (iops / 10)) * factor
-	what := "read"
-	if write == true {
-		what = "write"
-	}
-
-	t1 := time.Now()
-	cmd := exec.Command("ionice",
-			    "-c",	// args cannot contain spaces...
-			    "3",
-			    "fio",
-			    fmt.Sprintf("--rw=%s", what),
-                            "--blocksize=4k",
-                            "--ioengine=libaio",
-                            "--direct=1",
-                            "--iodepth=32",
-                            "--group_reporting",
-                            "--name=bwprobe",
-			    fmt.Sprintf("--numjobs=%d", parallel),
-			    fmt.Sprintf("--size=%d%s", size, "MiB"),
-			    "--output-format=json",
-			    fmt.Sprintf("--aux-path=%s", fio_path),
-			    fmt.Sprintf("--directory=%s", fio_path_data),
-			    fmt.Sprintf("--rate_iops=%d,%d", iops, iops))
-
-	if silent == false {
-		fmt.Fprintf(os.Stderr, "Starting FIO probe IOPS: %d  size: %d  rw: %s\n", iops, size, what)
-	}
-	fio_log, err := cmd.CombinedOutput()
-	t2 := time.Now()
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "FIO finished with error: %v\n", err)
-	} else {
-		if silent == false {
-			fmt.Fprintf(os.Stderr, "FIO finished IOPS: %d after %v\n", iops, t2.Sub(t1))
-			if optLogProbe {
-				fmt.Fprintf(os.Stderr, "FIO results: %s", fio_log)
-			}
-		}
-	}
-}
-
-func PrepareFio() (error) {
-	if !optProbe {
-		return nil
-	}
-	err := os.MkdirAll(fio_path_data, 0777)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating fio target dir\n")
-		return err
-	}
-	return nil
-}
-
-func CleanupFio() (error) {
-	// TODO: catch Ctrl-C or maybe unlink above (would still be racy)?
-
-	if !optProbe || optKeepProbeFiles {
-		return nil
-	}
-
-	err := os.RemoveAll(fio_path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error removing fio target dir\n")
-		return err
-	}
-	return nil
-}
-
 func printHeader() () {
 	fmt.Fprintf(os.Stderr, "Droplet\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
 	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
@@ -1664,12 +1585,6 @@ func ThrottleDroplet(pid int) {
 	limit_read := 100000000		// 100 MB/s
 	limit_write := 100000000
 
-	// set half of max probe bandwidth as victim bps limit
-	if optProbe {
-		limit_read = int(probe_max_read_bw / 2)
-		limit_write = int(probe_max_write_bw / 2)
-	}
-
 	sr := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_read)
 	sw := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_write)
 
@@ -1784,10 +1699,7 @@ func main() {
 	}
 
 	flag.BoolVar(&optMonitor, "monitor-only", true, "Monitor only without bandwidth throttling")
-	flag.BoolVar(&optProbe, "probe", false, "Run bandwidth probing")
-	flag.BoolVar(&optKeepProbeFiles, "keep-probe-files", false, "Don't delete probe data files on exit. This saves time by re-using once created files.")
 	flag.BoolVar(&optLogEvents, "log-events", false, "Log BPF events to stdout") // TODO: maybe add a log file target
-	flag.BoolVar(&optLogProbe, "log-probe", false, "Log fio probe results to stderr") // TODO: maybe add a log file target
 	flag.BoolVar(&optHeadless, "headless", false, "No monitor output")
 	flag.BoolVar(&optCSV, "csv", false, "Write output to CSV file")
 	flag.BoolVar(&optColor, "color", false, "Colorful terminal output")
@@ -1817,11 +1729,6 @@ func main() {
 	err = ParseDroplets()
 	if err != nil {
 		panic("Error ParseDroplets:" + err.Error())
-	}
-
-	err = PrepareFio()
-	if err != nil {
-		panic("Error PrepareFio:" + err.Error())
 	}
 
 	if !optTraceReq && !optTraceBio {
@@ -1857,43 +1764,6 @@ func main() {
 	} else {
 		bpfprogramFile = "./reaper-hist.bpf.o"
 		go run_bpf_hist()
-	}
-
-	if optProbe {
-		// Dummy-probe to init HV deltas and create test files (to avoid having these writes later)
-		// TODO: move run fio with max. files used into PrepareFIO
-		RunFio(102400, 11, true, false)
-		printLatencyStats()
-		GetHVData()
-
-		// First probe bandwith to determine max headroom and acceptable latencies
-		for iops, factor := 100, 1; iops < 120000; iops, factor = iops * 2, factor + 1 {
-			if exiting {
-				break
-			}
-
-			if optDebug {
-				fmt.Fprintf(os.Stderr, "\ndebug: probe fio with iops: %d  factor: %d\n", iops, factor)
-			}
-
-			RunFio(iops, factor, false, false)
-			printLatencyStats()
-			GetHVData()
-			fmt.Fprintf(os.Stderr, "\n")
-			RunFio(iops, factor, false, true)
-			printLatencyStats()
-			GetHVData()
-			fmt.Fprintf(os.Stderr, "\n")
-		}
-		fmt.Fprintf(os.Stderr, "probe latencies:  read-min: %d  read-max: %d  write-min: %d  write-max: %d\n",
-				probe_lat_read_avg_min, probe_lat_read_avg_max,
-				probe_lat_write_avg_min, probe_lat_write_avg_max)
-		// calculate target latencies
-		// TODO: should be more sophisticated
-		target_lat_read_avg = (probe_lat_read_avg_max - probe_lat_read_avg_min) / 2
-		target_lat_write_avg = (probe_lat_write_avg_max - probe_lat_write_avg_min) / 2
-		fmt.Fprintf(os.Stderr, "latency targets: read: %d µs   write: %d µs\n", target_lat_read_avg, target_lat_write_avg)
-		fmt.Fprintf(os.Stderr, "max bandwidth bytes/s: read: %d   write %d\n", probe_max_read_bw, probe_max_write_bw)
 	}
 
 	// set fixed latency limits if defined
@@ -1975,5 +1845,4 @@ func main() {
 	if !optMonitor {
 		UnthrottleAllDroplets()
 	}
-	CleanupFio()
 }
