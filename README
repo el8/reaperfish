@@ -1,9 +1,11 @@
 Installation instructions
 ------------------------
 
-sudo apt install docker.io clang libbpf-dev
+sudo apt install docker.io clang llvm libbpf-dev libbpf0 dwarves
 sudo adduser myuser docker
 sudo apt install linux-tools-common (for bpftool)
+
+TODO: split into build and use setup, optional (docker?)
 
 To use the Makefile put the following in docode/bin/build.sh:
 

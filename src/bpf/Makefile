@@ -3,11 +3,6 @@ all: build fix
 OBJS = reaper-log.bpf.o #reaper-hist.bpf.o
 build: $(OBJS)
 
-# clang -O2 -g -Wall -target bpf -emit-llvm -c reaper-log.bpf.c -o reaper.bc
-# llc reaper.bc -march=bpf -mattr=dwarfris -filetype=obj -o reaper.o
-
-
-
 $(OBJS):  %.o:%.c
 	clang -D__KERNEL__ -D__ASM_SYSREG_H \
 		-Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-unknown-attributes \
