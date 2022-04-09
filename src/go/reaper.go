@@ -591,6 +591,7 @@ func ConfigureCgroupVars() (error) {
 		blkioServiced = "/blkio.throttle.io_serviced"
 		blkioThrottleReads = "/blkio.throttle.read_bps_device"
 		blkioThrottleWrites = "/blkio.throttle.write_bps_device"
+		fmt.Fprintf(os.Stderr, "cgroupv1 detected\n")
 	} else {
 		// cgroupv2 based configuration
 		cgroupVersion = 2
@@ -600,6 +601,7 @@ func ConfigureCgroupVars() (error) {
 		blkioServiced = "io.stat"
 		blkioThrottleReads = "io.max"
 		blkioThrottleWrites = "io.max"
+		fmt.Fprintf(os.Stderr, "cgroupv2 detected\n")
 	}
 	return nil
 }
