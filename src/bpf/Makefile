@@ -1,5 +1,6 @@
-all: build fix
+all: build
 
+BUILDDIR = ../../build
 OBJS = reaper-log.bpf.o #reaper-hist.bpf.o
 build: $(OBJS)
 
@@ -13,8 +14,9 @@ $(OBJS):  %.o:%.c
 		-I ./include -I /libbpf/src/root/usr/include \
 		-O2 -target bpf -emit-llvm \
 		-g \
-		-c $< -o -| llc -march=bpf -mattr=dwarfris -filetype=obj -o $@
-	llvm-strip -g $@
+		-c $< -o -| llc -march=bpf -mattr=dwarfris -filetype=obj -o $(BUILDDIR)/$@
+	llvm-strip -g $(BUILDDIR)/$@
+	llvm-strip $(BUILDDIR)/$@ --no-strip-all -R .BTF
 
 # workaround for: panic: program ...: load BTF: invalid argument: magic: 0xeb9f
 # https://github.com/cilium/ebpf/issues/43
