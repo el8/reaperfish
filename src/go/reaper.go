@@ -501,9 +501,9 @@ type latency struct {
 type process_type int
 
 const (
-	TypeDroplet = iota
+	TypeVM = iota
 	TypeHVGlobal
-	TypeHVService
+	TypeService
 )
 
 // process description, this can be a droplet, HV service or other process (e.g. kworker threads)
@@ -656,18 +656,18 @@ func GetDropletIDs() (error) {
 			d.scanned = true
 			continue
 		} else {
-			// store droplet data
+			// store VM data
 			var d *process_info
 			d = new(process_info)
 			d.pid = pid
 			d.ID = id
-			d.ptype = TypeDroplet
+			d.ptype = TypeVM
 			d.dir = dirCgroup.Name()
 			d.scanned = true
 
 			pinfo[pid] = d
 			if optDebug {
-				fmt.Fprintf(os.Stderr, "debug: added droplet-ID: %d  info @ %p\n", id, d)
+				fmt.Fprintf(os.Stderr, "debug: added VM-ID: %d  info @ %p\n", id, d)
 			}
 		}
 	}
@@ -685,6 +685,77 @@ func GetDropletIDs() (error) {
 				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", d.pid, err)
 			}
 			delete(pinfo, d.pid)
+		}
+	}
+
+	return nil
+}
+
+// Get service IDs parsing blkio cgroup
+func GetServiceIDs() (error) {
+	// mark all existing processes to detect dead ones
+	for _, s := range pinfo {
+		s.scanned = false
+	}
+
+	dirsCgroup, err := ioutil.ReadDir(basedirCgroupHV)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "blkio cgroup is not configured")
+		return err
+	}
+
+	// Iterate over the base directory
+	for _, dirCgroup := range dirsCgroup {
+		// Find only dirs that contain service info
+		if !dirCgroup.IsDir() || !strings.HasSuffix(dirCgroup.Name(), ".service") {
+			continue
+		}
+
+		// get PID of process
+		pid, err := ReadPIDFile(basedirCgroupHV, dirCgroup.Name(), "/cgroup.procs")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading pid for service %s\n", dirCgroup.Name())
+			return err
+		}
+		if pid == 0 {
+			fmt.Fprintf(os.Stderr, "error: pid is zero for service %s\n", dirCgroup.Name())
+		}
+
+		// lookup if we know this process already
+		s, ok := pinfo[pid]
+		if ok {
+			// just mark it
+			s.scanned = true
+			continue
+		} else {
+			// store service data
+			var s *process_info
+			s = new(process_info)
+			s.pid = pid
+			s.ptype = TypeService
+			s.dir = dirCgroup.Name()
+			s.scanned = true
+
+			pinfo[pid] = s
+			if optDebug {
+				fmt.Fprintf(os.Stderr, "debug: added service: %d  info @ %p\n", pid, s)
+			}
+		}
+	}
+
+	// find dead services
+	for _, s := range pinfo {
+		if s.scanned == false {
+			// remove service
+			var k hist_key
+
+			k.Pid = uint32(s.pid)
+			// Deleting a process directly from the BPF map should be race-safe
+			// as the process is gone and no new events will therefore be added from BPF side
+			if err := hists.Delete(&k); err != nil {
+				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", s.pid, err)
+			}
+			delete(pinfo, s.pid)
 		}
 	}
 
@@ -1151,54 +1222,66 @@ func PrintData(o *output) {
 	}
 }
 
-func GetHVServiceData(service string, p *process_info) (error) {
+func GetServiceData() (error) {
+	//var err error
+	//var o output
 
-	rd, wr, err := ReadIOServiceFile(basedirCgroupHV, service, blkioServiceBytes)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
-		return nil
+	// sort services by PID to keep output comparable between cycles
+	sinfo_sort := make([]*process_info, 0, len(pinfo))
+	for _, s := range pinfo {
+		sinfo_sort = append(sinfo_sort, s)
 	}
+	sort.Sort(ByID(sinfo_sort))
 
-	rdops, wrops, err := ReadIOServiceFile(basedirCgroupHV, service, blkioServiced)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
-		return nil
-	}
-
-	if p.usable == true {
-		time_diff := time.Now().Sub(p.timestamp)
-
-		if rd < p.last.read_bytes || rdops < p.last.read_ops ||
-		   wr < p.last.write_bytes || wrops < p.last.write_ops {
-			   fmt.Fprintf(os.Stderr, "error: implausible blkio value for read or write\n")
+	//var rd, wr, rdops, wrops uint64
+	for _, s := range sinfo_sort {
+		rd, wr, err := ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiceBytes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
+			return nil
 		}
 
-		fmt.Fprintf(os.Stderr, "HV (%s)\t", service)
-
-		rbytes := uint64(float64(rd - p.last.read_bytes) / time_diff.Seconds())
-		rdelta, rformat := formatDelta(rbytes)
-		if rbytes > probe_max_read_bw {
-			probe_max_read_bw = rbytes
+		rdops, wrops, err := ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiced)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
+			return nil
 		}
 
-		wbytes := uint64(float64(wr - p.last.write_bytes) / time_diff.Seconds())
-		wdelta, wformat := formatDelta(wbytes)
-		if wbytes > probe_max_write_bw {
-			probe_max_write_bw = wbytes
+		if s.usable == true {
+			time_diff := time.Now().Sub(s.timestamp)
+
+			if rd < s.last.read_bytes || rdops < s.last.read_ops ||
+			   wr < s.last.write_bytes || wrops < s.last.write_ops {
+				   fmt.Fprintf(os.Stderr, "error: implausible blkio value for read or write\n")
+			}
+
+			fmt.Fprintf(os.Stderr, "HV (%s)\t", s.dir)
+
+			rbytes := uint64(float64(rd - s.last.read_bytes) / time_diff.Seconds())
+			rdelta, rformat := formatDelta(rbytes)
+			if rbytes > probe_max_read_bw {
+				probe_max_read_bw = rbytes
+			}
+
+			wbytes := uint64(float64(wr - s.last.write_bytes) / time_diff.Seconds())
+			wdelta, wformat := formatDelta(wbytes)
+			if wbytes > probe_max_write_bw {
+				probe_max_write_bw = wbytes
+			}
+			fmt.Fprintf(os.Stderr, "%3d %s / %3d %s\t\t", rdelta, rformat, wdelta, wformat)
+			fmt.Fprintf(os.Stderr, "%5d / %5d",
+				uint64(float64(rdops - s.last.read_ops) / time_diff.Seconds()),
+				uint64(float64(wrops - s.last.write_ops) / time_diff.Seconds()))
+			fmt.Fprintf(os.Stderr, "\n")
 		}
-		fmt.Fprintf(os.Stderr, "%3d %s / %3d %s\t\t", rdelta, rformat, wdelta, wformat)
-		fmt.Fprintf(os.Stderr, "%5d / %5d",
-			uint64(float64(rdops - p.last.read_ops) / time_diff.Seconds()),
-			uint64(float64(wrops - p.last.write_ops) / time_diff.Seconds()))
-		fmt.Fprintf(os.Stderr, "\n")
+
+		s.last.read_bytes = rd
+		s.last.write_bytes = wr
+		s.last.read_ops = rdops
+		s.last.write_ops = wrops
+		s.timestamp = time.Now()	// TODO: we miss some ns by taking another ts
+		s.usable = true
 	}
-
-	p.last.read_bytes = rd
-	p.last.write_bytes = wr
-	p.last.read_ops = rdops
-	p.last.write_ops = wrops
-	p.timestamp = time.Now()	// TODO: we miss some ns by taking another ts
-	p.usable = true
 	return nil
 }
 
@@ -1420,7 +1503,7 @@ func GetDropletData() error {
 	return nil
 }
 
-func ParseDroplets() (error) {
+func ParseVMs() (error) {
 	if noVMs == true {
 		return nil
 	}
@@ -1431,6 +1514,20 @@ func ParseDroplets() (error) {
 	}
 
 	err = GetDropletData()
+	if err != nil {
+                return err
+        }
+
+	return err
+}
+
+func ParseServices() (error) {
+	err := GetServiceIDs()
+	if err != nil {
+		return err
+	}
+
+	err = GetServiceData()
 	if err != nil {
                 return err
         }
@@ -1637,9 +1734,9 @@ func main() {
 	}
 
 	// initial run to learn qemu PIDs and initialize values
-	err = ParseDroplets()
+	err = ParseVMs()
 	if err != nil {
-		panic("Error ParseDroplets:" + err.Error())
+		panic("Error ParseVMs:" + err.Error())
 	}
 
 	if !optTraceReq && !optTraceBio {
@@ -1685,13 +1782,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "manual latency targets applied: read: %d µs   write: %d µs\n", target_lat_read_avg, target_lat_write_avg)
 	}
 
-	// tracked HV services
-	var HV_service_ssh process_info
-	var HV_service_hvd process_info
-
 	HV_global.ptype = TypeHVGlobal
-	HV_service_ssh.ptype = TypeHVService
-	HV_service_hvd.ptype = TypeHVService
 
 	cycle := 0
 	for {
@@ -1708,23 +1799,18 @@ func main() {
 			fmt.Println(string(bgLightGreen))
 		}
 
-		err := ParseDroplets()
+		err := ParseVMs()
 		if err != nil {
-			panic("Error ParseDroplets:" + err.Error())
+			panic("Error ParseVMs:" + err.Error())
 		}
 
 		if optColor {
 			fmt.Println(string(bgLightGrey))
 		}
 
-		err = GetHVServiceData("ssh.service", &HV_service_ssh)
+		err = ParseServices()
 		if err != nil {
-			panic("Error GetHVServiceData ssh:" + err.Error())
-		}
-
-		err = GetHVServiceData("hvd.service", &HV_service_hvd)
-		if err != nil {
-			panic("Error GetHVServiceData hvd:" + err.Error())
+			panic("Error ParseServices:" + err.Error())
 		}
 
 		err = GetHVData()

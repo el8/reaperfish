@@ -11,7 +11,7 @@ Bugs
 - improve bpf Makefile for all targets to build from a single rule
 - try BPF code with -Wall and remove warnings
 - Fix golang printf mess with my own wrapper
-- remove code: cgroups1, fio, throttling, ...
+- droplet -> VM
 
 
 Feats
