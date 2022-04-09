@@ -573,7 +573,7 @@ var CSV_File string = "reaper.csv"
 
 // cgroupv1 vs. cgroupv2 configuration
 var cgroupVersion int
-var basedirCgroupD string
+var basedirCgroupVM string
 var basedirCgroupHV string
 var blkioServiceBytes string
 var blkioServiced string
@@ -582,10 +582,12 @@ var blkioThrottleWrites string
 
 // Get cgroup configuration on the HV
 func ConfigureCgroupVars() (error) {
+	// TODO: fix this mess, get cgroup version via mount
+	/*
 	if _, err := os.Stat("/sys/fs/cgroup/machine.slice"); os.IsNotExist(err) {
 		// cgroupv1 based configuration
 		cgroupVersion = 1
-		basedirCgroupD = "/sys/fs/cgroup/blkio/machine.slice/"
+		basedirCgroupVM = "/sys/fs/cgroup/blkio/machine.slice/"
 		basedirCgroupHV = "/sys/fs/cgroup/blkio/system.slice/"
 		blkioServiceBytes = "/blkio.throttle.io_service_bytes"
 		blkioServiced = "/blkio.throttle.io_serviced"
@@ -593,16 +595,17 @@ func ConfigureCgroupVars() (error) {
 		blkioThrottleWrites = "/blkio.throttle.write_bps_device"
 		fmt.Fprintf(os.Stderr, "cgroupv1 detected\n")
 	} else {
+	*/
 		// cgroupv2 based configuration
 		cgroupVersion = 2
-		basedirCgroupD = "/sys/fs/cgroup/machine.slice/"
+		basedirCgroupVM = "/sys/fs/cgroup/machine.slice/"
 		basedirCgroupHV = "/sys/fs/cgroup/system.slice/"
 		blkioServiceBytes = "io.stat"
 		blkioServiced = "io.stat"
 		blkioThrottleReads = "io.max"
 		blkioThrottleWrites = "io.max"
-		fmt.Fprintf(os.Stderr, "cgroupv2 detected\n")
-	}
+		fmt.Fprintf(os.Stderr, "cgroupv2 assumed\n")
+	//}
 	return nil
 }
 
@@ -613,7 +616,7 @@ func GetDropletIDs() (error) {
 		d.scanned = false
 	}
 
-	dirsCgroup, err := ioutil.ReadDir(basedirCgroupD)
+	dirsCgroup, err := ioutil.ReadDir(basedirCgroupVM)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "blkio cgroup is not configured")
 		return err
@@ -636,7 +639,7 @@ func GetDropletIDs() (error) {
 
 		// get PID of qemu process
 		// Note: /libvirt/ component was added by a libvirt change, should be all focal and cgroupsv2
-		pid, err := ReadPIDFile(basedirCgroupD, dirCgroup.Name(), "/libvirt/cgroup.procs")
+		pid, err := ReadPIDFile(basedirCgroupVM, dirCgroup.Name(), "/libvirt/cgroup.procs")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error reading pid for droplet: %s\n", dirCgroup.Name())
 			return err
@@ -1306,19 +1309,19 @@ func GetDropletData() error {
 	var rd, wr, rdops, wrops uint64
 	for _, d := range dinfo_sort {
 		if cgroupVersion == 1 {
-			rd, wr, err = ReadIOServiceFile(basedirCgroupD, d.dir, blkioServiceBytes)
+			rd, wr, err = ReadIOServiceFile(basedirCgroupVM, d.dir, blkioServiceBytes)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: reading file for droplet: %s\n", d.dir)
 				continue
 			}
 
-			rdops, wrops, err = ReadIOServiceFile(basedirCgroupD, d.dir, blkioServiced)
+			rdops, wrops, err = ReadIOServiceFile(basedirCgroupVM, d.dir, blkioServiced)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: reading file for droplet\n")
 				return nil
 			}
 		} else if cgroupVersion == 2 {
-			rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupD, d.dir, blkioServiced)
+			rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupVM, d.dir, blkioServiced)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: reading file for droplet\n")
 				return nil
@@ -1602,12 +1605,12 @@ func SleepInterruptible() {
 func UnthrottleDroplet(pid int) (error) {
 	s := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, 0)
 
-	err := WriteIOThrottleFile(basedirCgroupD, pinfo[pid].dir, blkioThrottleReads, s)
+	err := WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleReads, s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
 	}
 
-	err = WriteIOThrottleFile(basedirCgroupD, pinfo[pid].dir, blkioThrottleWrites, s)
+	err = WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleWrites, s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
 	}
@@ -1627,11 +1630,11 @@ func UnthrottleAllDroplets() {
 func InitUnthrottleAllDroplets() {
 	fmt.Fprintf(os.Stderr, "Initially removing all droplet throttle limits\n")
 	for _, d := range pinfo {
-		limit_rd, err := ReadIOThrottleFile(basedirCgroupD, d.dir, blkioThrottleReads)
+		limit_rd, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleReads)
 		if err != nil {
 			continue
 		}
-		limit_wr, err := ReadIOThrottleFile(basedirCgroupD, d.dir, blkioThrottleWrites)
+		limit_wr, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleWrites)
 		if err != nil {
 			continue
 		}
@@ -1656,12 +1659,12 @@ func ThrottleDroplet(pid int) {
 	sr := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_read)
 	sw := fmt.Sprintf("%d:%d %d\n", def_major, def_minor, limit_write)
 
-	err := WriteIOThrottleFile(basedirCgroupD, pinfo[pid].dir, blkioThrottleReads, sr)
+	err := WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleReads, sr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
 	}
 
-	err = WriteIOThrottleFile(basedirCgroupD, pinfo[pid].dir, blkioThrottleWrites, sw)
+	err = WriteIOThrottleFile(basedirCgroupVM, pinfo[pid].dir, blkioThrottleWrites, sw)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: writing limit for droplet: %s\n", pinfo[pid].dir)
 	}
@@ -1725,11 +1728,11 @@ func PrintIOLimits() {
 			fmt.Fprintf(os.Stderr, "droplet #%d is throttled\n", d.ID)
 		}
 
-		limit_rd, err := ReadIOThrottleFile(basedirCgroupD, d.dir, blkioThrottleReads)
+		limit_rd, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleReads)
 		if err != nil {
 			continue
 		}
-		limit_wr, err := ReadIOThrottleFile(basedirCgroupD, d.dir, blkioThrottleReads)
+		limit_wr, err := ReadIOThrottleFile(basedirCgroupVM, d.dir, blkioThrottleReads)
 		if err != nil {
 			continue
 		}
