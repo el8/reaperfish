@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -1759,8 +1760,19 @@ func DetectPartition() (error) {
 	return nil
 }
 
+func isRoot() bool {
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Fatalf("[isRoot] Unable to get current user: %s", err)
+	}
+	return currentUser.Username == "root"
+}
+
 func main() {
-	fmt.Fprintf(os.Stderr, "Reaper started")
+	fmt.Fprintf(os.Stderr, "Reaper started\n")
+	if isRoot() == false {
+		panic("Must be run as root.")
+	}
 
 	flag.BoolVar(&optMonitor, "monitor-only", true, "Monitor only without bandwidth throttling")
 	flag.BoolVar(&optProbe, "probe", false, "Run bandwidth probing")
