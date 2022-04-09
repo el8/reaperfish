@@ -154,12 +154,13 @@ func run_bpf_log() {
 
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(program))
 	if err != nil {
-		panic(err)
+		panic("Error ebpf.LoadCollectionSpecFromReader:" + err.Error())
+
 	}
 
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
-		panic(err)
+		panic("Error ebpf.NewCollection:" + err.Error())
 	}
 
 	// get perf events buffer from BPF
@@ -421,12 +422,12 @@ func run_bpf_hist() {
 
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(program))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("ebpf.LoadCollectionSpecFromReader"))
 	}
 
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("ebpf.NewCollection"))
 	}
 
 	if optTraceBio {
@@ -1121,7 +1122,7 @@ func PrintData(o *output) {
 		// TODO: this sucks, making CSV global does fail on writes
 		CSV, err := os.OpenFile(CSV_File, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			panic(err)
+			panic("Error open CSV file:" + err.Error())
 		}
 		defer CSV.Close()
 
@@ -1758,7 +1759,7 @@ func DetectPartition() (error) {
 	return nil
 }
 
-func Startup() (error) {
+func main() {
 	fmt.Fprintf(os.Stderr, "Reaper started")
 
 	flag.BoolVar(&optMonitor, "monitor-only", true, "Monitor only without bandwidth throttling")
@@ -1781,24 +1782,23 @@ func Startup() (error) {
 	// configure cgroup based params based on the cgroup version
 	err := ConfigureCgroupVars()
 	if err != nil {
-		return err
+		panic("Error ConfigureCgroupVars:" + err.Error())
 	}
 
 	err = DetectPartition()
 	if err != nil {
-		return err
+		panic("Error DetectPartition:" + err.Error())
 	}
 
 	// initial run to learn qemu PIDs and initialize values
 	err = ParseDroplets()
 	if err != nil {
-		return err
+		panic("Error ParseDroplets:" + err.Error())
 	}
-
 
 	err = PrepareFio()
 	if err != nil {
-		return err
+		panic("Error PrepareFio:" + err.Error())
 	}
 
 	if !optTraceReq && !optTraceBio {
@@ -1817,7 +1817,7 @@ func Startup() (error) {
 		// TODO: add date and host
 		CSV, err := os.Create(CSV_File)
 		if err != nil {
-			panic(err)
+			panic("Error os.Create CSV file:" + err.Error())
 		}
 		defer CSV.Close()
 
@@ -1910,7 +1910,7 @@ func Startup() (error) {
 
 		err := ParseDroplets()
 		if err != nil {
-			return err
+			panic("Error ParseDroplets:" + err.Error())
 		}
 
 		if optColor {
@@ -1919,17 +1919,17 @@ func Startup() (error) {
 
 		err = GetHVServiceData("ssh.service", &HV_service_ssh)
 		if err != nil {
-			return err
+			panic("Error GetHVServiceData ssh:" + err.Error())
 		}
 
 		err = GetHVServiceData("hvd.service", &HV_service_hvd)
 		if err != nil {
-			return err
+			panic("Error GetHVServiceData hvd:" + err.Error())
 		}
 
 		err = GetHVData()
 		if err != nil {
-			return err
+			panic("Error GetHVData:" + err.Error())
 		}
 
 		if !optMonitor {
@@ -1953,9 +1953,4 @@ func Startup() (error) {
 		UnthrottleAllDroplets()
 	}
 	CleanupFio()
-	return nil
-}
-
-func main() {
-	Startup()
 }
