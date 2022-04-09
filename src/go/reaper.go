@@ -1742,25 +1742,15 @@ func PrintIOLimits() {
 	}
 }
 
-func DetectPartition() (error) {
-	// find /var/lib/libvirt/images in /proc/mounts
-	link, err := ReadMounts("/proc/mounts", "", "")
-	if err != nil {
-		return err
-	}
-	// readlink on result
-	target, err := os.Readlink(fmt.Sprintf("%s", link))
-	if err != nil {
-		return err
-	}
-	target = fmt.Sprintf("/dev/mapper/%s", target)
+// TODO: pass device from arg
+func DetectDevice() (error) {
+	// check device is block device
+	//stat := syscall.Stat_t{}
+	//_ = syscall.Stat(target, &stat)
 
-	// stat result
-	stat := syscall.Stat_t{}
-	_ = syscall.Stat(target, &stat)
+	//def_major = int64(stat.Rdev / 256)
+	//def_minor = int64(stat.Rdev % 256)
 
-	def_major = int64(stat.Rdev / 256)
-	def_minor = int64(stat.Rdev % 256)
 	fmt.Fprintf(os.Stderr, "Target partition default major:minor: %d:%d\n", def_major, def_minor)
 	return nil
 }
@@ -1792,6 +1782,8 @@ func main() {
 	flag.BoolVar(&optTraceBio, "trace-bio", false, "Bio based tracing (md device)")
 	flag.BoolVar(&optBPFHist, "histogram-mode", false, "Aggregate data in histograms")
 	flag.IntVar(&cycle_secs, "secs", 10, "Delay between updates in seconds")
+	flag.Int64Var(&def_major, "major", 8, "Target device major")
+	flag.Int64Var(&def_minor, "minor", 0, "Target device minor")
 	flag.IntVar(&manual_lat_read_avg, "target-read-lat", 100000, "Target average read latency in microseconds")
 	flag.IntVar(&manual_lat_write_avg, "target-write-lat", 100000, "Target average write latency in microseconds")
 	flag.Parse()
@@ -1802,9 +1794,9 @@ func main() {
 		panic("Error ConfigureCgroupVars:" + err.Error())
 	}
 
-	err = DetectPartition()
+	err = DetectDevice()
 	if err != nil {
-		panic("Error DetectPartition:" + err.Error())
+		panic("Error DetectDevice:" + err.Error())
 	}
 
 	// initial run to learn qemu PIDs and initialize values
