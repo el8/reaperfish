@@ -292,7 +292,7 @@ func run_bpf_log() {
 			}
 
 			// Filter devices we don't want to track.
-			if event.Major != def_major || event.Minor != def_minor {
+			if int64(event.Major) != def_major || int64(event.Minor) != def_minor {
 				continue
 			}
 
@@ -936,7 +936,7 @@ func ReadIOThrottleFile(base, prefix string, suffix string) (uint64, error) {
 		}
 
 		// only limit on /var/lib/libvirt/images
-		if major != def_major || minor != def_minor {
+		if int64(major) != def_major || int64(minor) != def_minor {
 			fmt.Fprintf(os.Stderr, "error: unknown limit on %d:%d path: %s\n", major, minor, path)
 			continue
 		}
