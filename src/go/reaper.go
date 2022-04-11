@@ -285,23 +285,16 @@ func run_bpf_log() {
 				log.Printf("error parsing perf event: %s", err)
 				continue
 			}
-			// XXX debug: skip R&W
-			// ignore all but read and write
-			//if event.RWFlag == REQ_OP_READ || event.RWFlag == REQ_OP_WRITE {
-			//	continue
-			//}
 
-			/*
-			 * Filter devices we don't want to track.
-			 * req tracing: physical disk 8:x (SSD) or 259:x (NVME)
-			 * bio tracing: md device 9:1
-			 * bio tracing: dm device: 253:x
-			 */
-			// Not necessary anymore as BPF will only pass 253:x events for now.
-			// TODO: adjust req tracing
-			//if event.Major = 253 {
-			//	continue
-			//}
+			// ignore all but read and write
+			if event.RWFlag == REQ_OP_READ || event.RWFlag == REQ_OP_WRITE {
+				continue
+			}
+
+			// Filter devices we don't want to track.
+			if event.Major != def_major || event.Minor != def_minor {
+				continue
+			}
 
 			comm := C.GoString((*C.char)(unsafe.Pointer(&event.Comm)))
 			disk := C.GoString((*C.char)(unsafe.Pointer(&event.Disk)))
@@ -332,9 +325,7 @@ func run_bpf_log() {
 				if lat.write_max < event.Delta {
 					lat.write_max = event.Delta
 				}
-			} //else {
-			//	fmt.Fprintf(os.Stderr, "bpf: odd flag on event %x\n", event.RWFlag)
-			//}
+			}
 
 			/*
 			 * account event data per droplet
