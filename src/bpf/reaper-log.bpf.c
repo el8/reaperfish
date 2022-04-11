@@ -312,7 +312,7 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 
 	lenp = bpf_map_lookup_elem(&bio_len, &bio);
 	if (!lenp) {
-		data.len = 666;	// cannot happen
+		data.len = 0;	// cannot happen
 	} else {
 		data.len = *lenp;
 	}

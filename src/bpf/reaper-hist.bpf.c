@@ -72,10 +72,12 @@ static __always_inline u64 log2l(u64 v)
 static __always_inline
 int disk_traced(struct bio *bio)
 {
-	u32 major, minor;
 	struct block_device *bdev;
 	struct gendisk *disk;
-	disk = BPF_CORE_READ(bio, bi_disk);
+	u32 major, minor;
+
+	bdev = BPF_CORE_READ(bio, bi_bdev);
+        disk = BPF_CORE_READ(bdev, bd_disk);
 	major = BPF_CORE_READ(disk, major);
 	minor = BPF_CORE_READ(disk, first_minor);
 
@@ -145,10 +147,10 @@ int BPF_PROG(trace_bio_start, struct request_queue *q, struct bio *bio)
 	struct hist *histp;
 	struct hist initial_hist = {};
 
-	if (!disk_traced(bio))
-		return 0;
-	if (!process_traced())
-		return 0;
+	//if (!disk_traced(bio))
+	//	return 0;
+	//if (!process_traced())
+	//	return 0;
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
 	struct taskinfo_t ti = {};
@@ -197,16 +199,19 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	delta = now - *tsp;
 	delta /= 1000;
 
+	struct block_device *bdev;
 	struct gendisk *disk;
-	disk = BPF_CORE_READ(bio, bi_disk);
+        bdev = BPF_CORE_READ(bio, bi_bdev);
+	disk = BPF_CORE_READ(bdev, bd_disk);
+
 	bpf_probe_read_kernel_str(&disk_name, sizeof(disk_name), disk->disk_name);
 	major = BPF_CORE_READ(disk, major);
 	minor = BPF_CORE_READ(disk, first_minor);
 
 	// drop all but dm/lvm, should be catched by !tsp above already
-	if (major != 253) {
-		goto cleanup;
-	}
+	//if (major != 253) {
+	//	goto cleanup;
+	//}
 
 	char name[TASK_COMM_LEN];
 	u32 pid;
@@ -222,7 +227,7 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	u64 len;
 	lenp = bpf_map_lookup_elem(&bio_len, &bio);
 	if (!lenp) {
-		len = 666;	// cannot happen
+		len = 0;	// cannot happen
 	} else {
 		len = *lenp;
 	}
@@ -230,14 +235,11 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	u32 rwflag = BPF_CORE_READ(bio, bi_opf);
 	rwflag &= REQ_OP_MASK;
 
-	//bpf_printk("PID: %d  comm: %s\n", pid, name);
-
 	// sort delta into histogram bucket for pid
 	key.pid = pid;
 	histp = bpf_map_lookup_elem(&hists, &key);
 	if (!histp) {
 		// can happen but should not happen often
-		bpf_printk("debug: missing histogram for pid: %d\n", pid);
 		goto cleanup;
 	}
 
@@ -248,7 +250,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 		__sync_fetch_and_add(&histp->rd_slots[slot], 1);
 	else if (rwflag == REQ_OP_WRITE)
 		__sync_fetch_and_add(&histp->wr_slots[slot], 1);
-	//bpf_printk("hist++ pid: %d  slot: %d  delta: %d\n", pid, slot, delta);
 
 cleanup:
 	bpf_map_delete_elem(&bio_start, &bio);
