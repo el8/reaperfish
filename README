@@ -1,24 +1,13 @@
 Installation instructions
 ------------------------
 
-sudo apt install docker.io clang llvm libbpf-dev libbpf0 dwarves
-sudo adduser myuser docker
+sudo apt install clang llvm libbpf-dev libbpf0 dwarves
 sudo apt install linux-tools-common (for bpftool)
 
-TODO: split into build and use setup, optional (docker?)
+mkdir build
+make
 
-To use the Makefile put the following in docode/bin/build.sh:
-
-#!/bin/bash
-echo "building app in docker container"
-cd /cthulhu
-source .env.sh
-
-export GO111MODULE=off
-go build -ldflags="-X do/doge/version.commit=$(date +%s) -X do/doge/version.gitTreeState=dirty" do/teams/systems/reaper/cmd/reaper/
-if [ $? -eq 0 ]; then
-        echo "success"
-fi
+TODO: split into build and use setup
 
 
 llvm/clang packages
@@ -38,3 +27,23 @@ libclang1-10                                    install
 sudo update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-10 10
 sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 10
 sudo update-alternatives --install /usr/bin/llc llc /usr/bin/llc-10 10
+
+
+Optional Docker build instructions:
+
+sudo apt install docker.io
+sudo adduser myuser docker
+
+
+To use the Makefile put the following in docode/bin/build.sh:
+
+#!/bin/bash
+echo "building app in docker container"
+cd /cthulhu
+source .env.sh
+
+export GO111MODULE=off
+go build -ldflags="-X do/doge/version.commit=$(date +%s) -X do/doge/version.gitTreeState=dirty" do/teams/systems/reaper/cmd/reaper/
+if [ $? -eq 0 ]; then
+        echo "success"
+fi
