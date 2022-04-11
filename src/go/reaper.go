@@ -224,7 +224,7 @@ func run_bpf_log() {
 		        Program: prog_tp,
 	        })
 		if err != nil {
-			log.Fatalf("opening : %s", err)
+			log.Fatalf("opening block_bio_queue : %s", err)
 	        }
 		defer tp.Close()
 
@@ -235,7 +235,7 @@ func run_bpf_log() {
 		        Program: prog_tp2,
 	        })
 		if err != nil {
-			log.Fatalf("opening : %s", err)
+			log.Fatalf("opening block_bio_complete : %s", err)
 	        }
 		defer tp2.Close()
 
@@ -247,7 +247,7 @@ func run_bpf_log() {
 		        Program: prog_tp3,
 	        })
 		if err != nil {
-			log.Fatalf("opening : %s", err)
+			log.Fatalf("opening block_bio_remap: %s", err)
 	        }
 		defer tp3.Close()
 		*/
@@ -426,7 +426,7 @@ func run_bpf_hist() {
 		        Program: prog_tp,
 	        })
 		if err != nil {
-			log.Fatalf("opening : %s", err)
+			log.Fatalf("opening block_bio_queue: %s", err)
 	        }
 		defer tp.Close()
 
@@ -437,7 +437,7 @@ func run_bpf_hist() {
 		        Program: prog_tp2,
 	        })
 		if err != nil {
-			log.Fatalf("opening : %s", err)
+			log.Fatalf("opening block_bio_complete: %s", err)
 	        }
 		defer tp2.Close()
 	}
