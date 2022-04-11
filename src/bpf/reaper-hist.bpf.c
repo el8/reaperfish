@@ -139,7 +139,7 @@ struct bpf_map_def SEC("maps/bio_len") bio_len = {
  */
 
 SEC("raw_tracepoint/block_bio_queue")
-int BPF_PROG(trace_bio_start, struct request_queue *q, struct bio *bio)
+int BPF_PROG(trace_bio_start, struct bio *bio)
 {
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
@@ -164,11 +164,8 @@ int BPF_PROG(trace_bio_start, struct request_queue *q, struct bio *bio)
 	key.pid = ti.pid;
 	histp = bpf_map_lookup_elem(&hists, &key);
 	if (!histp) {
-		// unknown droplet, create new histograms
-		//bpf_printk("new droplet pid: %d  comm: %s\n", ti.pid, ti.name);
+		// unknown, create new histograms
 		bpf_map_update_elem(&hists, &key, &initial_hist, 0);
-	} else {
-		//bpf_printk("known droplet pid: %d  comm: %s\n", ti.pid, ti.name);
 	}
 	return 0;
 }
