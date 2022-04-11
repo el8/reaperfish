@@ -3,8 +3,10 @@ Reaperfish TODO's
 
 Bugs
 ----
+- merge with reaperfish-cilium branch (pick histogram stuff etc.)
 - kworker threads / pagecache IO tracking (similar to existing HV services, required to see HV services)
-  -> should be "fixed" by outer bio tracing, verify
+  -> should be "fixed" by outer bio tracing
+  -> no, still seeing a lot of unknown IO on 253:1 dm device...
 - BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
   maybe add to trace_req_start()
 - try removing -g and llvm strip step
@@ -13,6 +15,9 @@ Bugs
 - Fix golang printf mess with my own wrapper
 - droplet -> VM
 - make BPF lookup dir use absolute path and look for it in same dir as golang executable
+- color mode looks bad in konsole with non-default colors...
+- CTRL-C is broken in lastes reaperfish-cilium branch
+
 
 
 Feats
@@ -32,9 +37,8 @@ BPF
 ---
 - decide on minimal kernel version to support, 5.10+? focal? and required dependencies (libbpf),
 - improve kernel version logic in BPF code
-- add BTF runtime or kernel version check
-- build with uid/gid to prevent objects belonging to root?
 - Try to support kernel invariants (5.4, 5.10, 5.10+)
+- add vmlinux.h extraction to Makefile (check if not exists, then create, move vmlinux.h into build dir)
 - bi_disk is replaced by struct block_device *bi_bdev 309dca309fc39a9e3c31b916393b74bd174fd74e after 5.9
 - block_bio_complete: error argument got removed, need to deal with both variants for 5.4
   commit d24de76af836260a99ca2ba281a937bd5bc55591
