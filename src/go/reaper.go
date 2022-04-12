@@ -1355,10 +1355,110 @@ func CalcPercentile(percent int, perc []uint64) uint64 {
 // Δ is \xce\x94
 // ⌀ is \xe2\x8c\x80
 
+// TODO: if BPF provides IOPS the extra parms can go away...
+func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint64) () {
+	var o output
+
+	if (d.usable == true) {
+		time_diff := time.Now().Sub(d.timestamp)
+
+		var lat_rd_avg uint64 = 0
+		var lat_wr_avg uint64 = 0
+
+		if rd < d.last.read_bytes || wr < d.last.write_bytes {
+			fmt.Fprintf(os.Stderr, "error: implausible value for droplet blkio\n")
+		}
+
+		o.ID = d.ID
+		o.pid = d.pid
+		o.timestamp = d.timestamp
+
+		// read - write bandwith during cycle
+		o.rd_bytes = uint64(float64(rd - d.last.read_bytes) / time_diff.Seconds())
+		o.wr_bytes = uint64(float64(wr - d.last.write_bytes) / time_diff.Seconds())
+
+		// read-write IOPS during cycle
+		o.rd_ops = uint64(float64(rdops - d.last.read_ops) / time_diff.Seconds())
+		o.wr_ops = uint64(float64(wrops - d.last.write_ops) / time_diff.Seconds())
+
+		// read - write average latencies during cycle
+		if d.lat.read_nr != 0 {
+			lat_rd_avg = d.lat.read_total / d.lat.read_nr
+		}
+		if d.lat.write_nr != 0 {
+			lat_wr_avg = d.lat.write_total / d.lat.write_nr
+		}
+
+		o.rd_avg = lat_rd_avg
+		o.wr_avg = lat_wr_avg
+
+		o.rd_max = d.lat.read_max
+		o.wr_max = d.lat.write_max
+
+		// calculate percentiles
+		// sort array by value
+		o.rd_perc = len(d.rd_perc)
+		o.wr_perc = len(d.wr_perc)
+		sort.Slice(d.rd_perc, func(i, j int) bool {
+			return d.rd_perc[i] < d.rd_perc[j]
+		})
+		sort.Slice(d.wr_perc, func(i, j int) bool {
+			return d.wr_perc[i] < d.wr_perc[j]
+		})
+
+		//for _, v := range d.perc {
+		//	fmt.Fprintf(os.Stderr, "%d ", v)
+		//}
+		//fmt.Fprintf(os.Stderr, "\n")
+
+		// calculate values for p50, p90 and p99
+		o.rd_p50 = CalcPercentile(50, d.rd_perc)
+		o.wr_p50 = CalcPercentile(50, d.wr_perc)
+		o.rd_p90 = CalcPercentile(90, d.rd_perc)
+		o.wr_p90 = CalcPercentile(90, d.wr_perc)
+		o.rd_p99 = CalcPercentile(99, d.rd_perc)
+		o.wr_p99 = CalcPercentile(99, d.wr_perc)
+
+		// delete slice content
+		d.rd_perc = d.rd_perc[:0]
+		d.wr_perc = d.wr_perc[:0]
+
+		var bs_avg uint64 = 0
+		if d.bs_nr != 0 {
+			bs_avg = d.bs_total / d.bs_nr
+		}
+		o.bs_avg = bs_avg
+
+		d.lat_read_avg = lat_rd_avg
+		d.lat_write_avg = lat_wr_avg
+
+		PrintData(&o)
+	}
+
+	d.last.read_bytes = rd
+	d.last.write_bytes = wr
+	d.last.read_ops = rdops
+	d.last.write_ops = wrops
+
+	// TODO: re-factor into struct (same for HV) and reset by fn
+	d.lat.read_total = 0
+	d.lat.read_nr = 0
+	d.lat.read_max = 0
+
+	d.lat.write_total = 0
+	d.lat.write_nr = 0
+	d.lat.write_max = 0
+
+	d.bs_total = 0
+	d.bs_nr = 0
+
+	d.timestamp = time.Now()	// TODO: we miss some ns by taking another ts
+	d.usable = true
+}
+
 // TODO: output should be a local to parent and passed to print
 func GetDropletData() error {
 	var err error
-	var o output
 
 	// sort droplets by droplet ID to keep output comparable between cycles
 	dinfo_sort := make([]*process_info, 0, len(pinfo))
@@ -1391,102 +1491,7 @@ func GetDropletData() error {
 			return nil
 		}
 
-		if (d.usable == true) {
-			// TODO: timestamp required or is "uint64(cycle_secs)" good enough?
-			time_diff := time.Now().Sub(d.timestamp)
-
-			var lat_rd_avg uint64 = 0
-			var lat_wr_avg uint64 = 0
-
-			if rd < d.last.read_bytes || wr < d.last.write_bytes {
-				fmt.Fprintf(os.Stderr, "error: implausible value for droplet blkio\n")
-			}
-
-			o.ID = d.ID
-			o.pid = d.pid
-			o.timestamp = d.timestamp
-
-			// read - write bandwith during cycle
-			o.rd_bytes = uint64(float64(rd - d.last.read_bytes) / time_diff.Seconds())
-			o.wr_bytes = uint64(float64(wr - d.last.write_bytes) / time_diff.Seconds())
-
-			// read-write IOPS during cycle
-			o.rd_ops = uint64(float64(rdops - d.last.read_ops) / time_diff.Seconds())
-			o.wr_ops = uint64(float64(wrops - d.last.write_ops) / time_diff.Seconds())
-
-			// read - write average latencies during cycle
-			if d.lat.read_nr != 0 {
-				lat_rd_avg = d.lat.read_total / d.lat.read_nr
-			}
-			if d.lat.write_nr != 0 {
-				lat_wr_avg = d.lat.write_total / d.lat.write_nr
-			}
-
-			o.rd_avg = lat_rd_avg
-			o.wr_avg = lat_wr_avg
-
-			o.rd_max = d.lat.read_max
-			o.wr_max = d.lat.write_max
-
-			// calculate percentiles
-			// sort array by value
-			o.rd_perc = len(d.rd_perc)
-			o.wr_perc = len(d.wr_perc)
-			sort.Slice(d.rd_perc, func(i, j int) bool {
-				return d.rd_perc[i] < d.rd_perc[j]
-			})
-			sort.Slice(d.wr_perc, func(i, j int) bool {
-				return d.wr_perc[i] < d.wr_perc[j]
-			})
-
-			//for _, v := range d.perc {
-			//	fmt.Fprintf(os.Stderr, "%d ", v)
-			//}
-			//fmt.Fprintf(os.Stderr, "\n")
-
-			// calculate values for p50, p90 and p99
-			o.rd_p50 = CalcPercentile(50, d.rd_perc)
-			o.wr_p50 = CalcPercentile(50, d.wr_perc)
-			o.rd_p90 = CalcPercentile(90, d.rd_perc)
-			o.wr_p90 = CalcPercentile(90, d.wr_perc)
-			o.rd_p99 = CalcPercentile(99, d.rd_perc)
-			o.wr_p99 = CalcPercentile(99, d.wr_perc)
-
-			// delete slice content
-			d.rd_perc = d.rd_perc[:0]
-			d.wr_perc = d.wr_perc[:0]
-
-			var bs_avg uint64 = 0
-			if d.bs_nr != 0 {
-				bs_avg = d.bs_total / d.bs_nr
-			}
-			o.bs_avg = bs_avg
-
-			d.lat_read_avg = lat_rd_avg
-			d.lat_write_avg = lat_wr_avg
-
-			PrintData(&o)
-		}
-
-		d.last.read_bytes = rd
-		d.last.write_bytes = wr
-		d.last.read_ops = rdops
-		d.last.write_ops = wrops
-
-		// TODO: re-factor into struct (same for HV) and reset by fn
-		d.lat.read_total = 0
-		d.lat.read_nr = 0
-		d.lat.read_max = 0
-
-		d.lat.write_total = 0
-		d.lat.write_nr = 0
-		d.lat.write_max = 0
-
-		d.bs_total = 0
-		d.bs_nr = 0
-
-		d.timestamp = time.Now()	// TODO: we miss some ns by taking another ts
-		d.usable = true
+		ProcessData(d, rd, wr, rdops, wrops)
 	}
 	return nil
 }
