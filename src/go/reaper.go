@@ -327,14 +327,12 @@ func run_bpf_log() {
 				}
 			}
 
-			/*
-			 * account event data per droplet
-			 */
 			// filter only qemu-system-x86_64 comm (probably misses kworker IO)
-			if !strings.HasPrefix(comm, "qemu") {
-				continue
-			}
-			// check if we know the qemu PID
+			//if !strings.HasPrefix(comm, "qemu") {
+			//	continue
+			//}
+
+			// check if we know the PID
 			p, ok := pinfo[int(event.Pid)]
 			if !ok {
 				if optDebug {
@@ -342,7 +340,6 @@ func run_bpf_log() {
 				}
 				continue
 			}
-			// use PID to account to correct droplet
 			if event.RWFlag == REQ_OP_READ {
 				p.lat.read_total += event.Delta
 				if event.Delta > p.lat.read_max {
