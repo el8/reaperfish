@@ -147,10 +147,6 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 	struct hist *histp;
 	struct hist initial_hist = {};
 
-	//if (!disk_traced(bio))
-	//	return 0;
-	//if (!process_traced())
-	//	return 0;
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
 	struct taskinfo_t ti = {};
@@ -204,11 +200,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	bpf_probe_read_kernel_str(&disk_name, sizeof(disk_name), disk->disk_name);
 	major = BPF_CORE_READ(disk, major);
 	minor = BPF_CORE_READ(disk, first_minor);
-
-	// drop all but dm/lvm, should be catched by !tsp above already
-	//if (major != 253) {
-	//	goto cleanup;
-	//}
 
 	char name[TASK_COMM_LEN];
 	u32 pid;

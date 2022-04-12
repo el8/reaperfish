@@ -17,7 +17,9 @@ Bugs
 - make BPF lookup dir use absolute path and look for it in same dir as golang executable
 - color mode looks bad in konsole with non-default colors...
 - CTRL-C is broken in lastes reaperfish-cilium branch
-
+- histogram mode needs a completely new display routine
+  -> unify GetDropletData mit GetServiceData
+- take IOPS from BPF rather than from cgroups! need BPF to export these
 
 
 Feats

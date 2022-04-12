@@ -246,9 +246,6 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
 
-	//if (!disk_traced(bio))
-	//	return 0;
-
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
 	struct taskinfo_t ti = {};
