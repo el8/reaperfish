@@ -46,6 +46,28 @@ struct bpf_map_def SEC("maps/hists") hists = {
 	.max_entries = MAX_ENTRIES,
 };
 
+struct iodata_key {
+        u32 pid;
+        u32 flag;
+};
+
+// time values are in microseconds
+struct iodata_val {
+        u64 read_nr;
+        u64 write_nr;
+        u64 read_bytes;
+        u64 write_bytes;
+        u64 read_time;
+        u64 write_time;
+};
+
+struct bpf_map_def SEC("maps/iodata") process_iodata = {
+        .type = BPF_MAP_TYPE_HASH,
+        .key_size = sizeof(struct iodata_key),
+        .value_size = sizeof(struct iodata_val),
+        .max_entries = MAX_ENTRIES,
+};
+
 static __always_inline u64 log2(u32 v)
 {
         u32 shift, r;
@@ -146,6 +168,9 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 	struct hist_key key = {};
 	struct hist *histp;
 	struct hist initial_hist = {};
+	struct iodata_key iokey = {};
+	struct iodata_val *iodata;
+        struct iodata_val initial_data = {};
 
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
@@ -158,11 +183,19 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 	bpf_map_update_elem(&bio_len, &bio, &len, 0);
 
 	key.pid = ti.pid;
+	iokey.pid = ti.pid;
 	histp = bpf_map_lookup_elem(&hists, &key);
 	if (!histp) {
 		// unknown, create new histograms
 		bpf_map_update_elem(&hists, &key, &initial_hist, 0);
 	}
+
+	iodata = bpf_map_lookup_elem(&process_iodata, &iokey);
+        if (!iodata) {
+                // unknown process, create new entry
+                bpf_map_update_elem(&process_iodata, &iokey, &initial_data, 0);
+        }
+
 	return 0;
 }
 
@@ -176,6 +209,8 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	struct taskinfo_t *ti;
 	struct hist_key key = {};
 	struct hist *histp;
+	struct iodata_key iokey = {};
+	struct iodata_val *iodata;
 
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
@@ -223,8 +258,10 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	u32 rwflag = BPF_CORE_READ(bio, bi_opf);
 	rwflag &= REQ_OP_MASK;
 
-	// sort delta into histogram bucket for pid
 	key.pid = pid;
+	iokey.pid = pid;
+
+	// sort delta into histogram bucket for pid
 	histp = bpf_map_lookup_elem(&hists, &key);
 	if (!histp) {
 		// can happen but should not happen often
@@ -234,10 +271,20 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	slot = log2l(delta);
 	if (slot >= MAX_SLOTS)
 		slot = MAX_SLOTS - 1;
-	if (rwflag == REQ_OP_READ)
+
+	if (rwflag == REQ_OP_READ) {
 		__sync_fetch_and_add(&histp->rd_slots[slot], 1);
-	else if (rwflag == REQ_OP_WRITE)
+
+		__sync_fetch_and_add(&iodata->read_nr, 1);
+		__sync_fetch_and_add(&iodata->read_bytes, len);
+		__sync_fetch_and_add(&iodata->read_time, delta);
+	} else if (rwflag == REQ_OP_WRITE) {
 		__sync_fetch_and_add(&histp->wr_slots[slot], 1);
+
+		__sync_fetch_and_add(&iodata->write_nr, 1);
+		__sync_fetch_and_add(&iodata->write_bytes, len);
+		__sync_fetch_and_add(&iodata->write_time, delta);
+	}
 
 cleanup:
 	bpf_map_delete_elem(&bio_start, &bio);
