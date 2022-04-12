@@ -1246,7 +1246,7 @@ func GetServiceData() (error) {
 				   fmt.Fprintf(os.Stderr, "error: implausible blkio value for read or write\n")
 			}
 
-			fmt.Fprintf(os.Stderr, "HV (%s)\t", s.dir)
+			fmt.Fprintf(os.Stderr, "%s\t\t", s.dir)
 
 			rbytes := uint64(float64(rd - s.last.read_bytes) / time_diff.Seconds())
 			rdelta, rformat := formatDelta(rbytes)
