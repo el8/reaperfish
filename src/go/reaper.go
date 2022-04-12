@@ -535,6 +535,7 @@ type output struct {
 	wr_p90		uint64
 	wr_p99		uint64
 	bs_avg		uint64
+	name		string
 }
 
 // global process map storing last cycle data indexed by pid
@@ -1108,7 +1109,11 @@ func PrintData(o *output) {
 		if optColor {
 			var color string
 
-			fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
+			if o.ID == -1 {
+				fmt.Fprintf(os.Stderr, " %s\t\t", o.name)
+			} else {
+				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
+			}
 
 			rdelta, rformat := formatDelta(o.rd_bytes)
 			wdelta, wformat := formatDelta(o.wr_bytes)
@@ -1144,7 +1149,11 @@ func PrintData(o *output) {
 			}
 			fmt.Println(string(color))
 		} else {
-			fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
+			if o.ID == -1 {
+				fmt.Fprintf(os.Stderr, " %s\t\t", o.name)
+			} else {
+				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
+			}
 
 			rdelta, rformat := formatDelta(o.rd_bytes)
 			wdelta, wformat := formatDelta(o.wr_bytes)
@@ -1211,9 +1220,6 @@ func PrintData(o *output) {
 }
 
 func GetServiceData() (error) {
-	//var err error
-	//var o output
-
 	// sort services by PID to keep output comparable between cycles
 	sinfo_sort := make([]*process_info, 0, len(pinfo))
 	for _, s := range pinfo {
@@ -1221,54 +1227,22 @@ func GetServiceData() (error) {
 	}
 	sort.Sort(ByID(sinfo_sort))
 
-	//var rd, wr, rdops, wrops uint64
+	var err error
+	var rd, wr, rdops, wrops uint64
 	for _, s := range sinfo_sort {
-		rd, wr, err := ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiceBytes)
+		rd, wr, err = ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiceBytes)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
 			return nil
 		}
 
-		rdops, wrops, err := ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiced)
+		rdops, wrops, err = ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiced)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
 			return nil
 		}
 
-		if s.usable == true {
-			time_diff := time.Now().Sub(s.timestamp)
-
-			if rd < s.last.read_bytes || rdops < s.last.read_ops ||
-			   wr < s.last.write_bytes || wrops < s.last.write_ops {
-				   fmt.Fprintf(os.Stderr, "error: implausible blkio value for read or write\n")
-			}
-
-			fmt.Fprintf(os.Stderr, "%s\t\t", s.dir)
-
-			rbytes := uint64(float64(rd - s.last.read_bytes) / time_diff.Seconds())
-			rdelta, rformat := formatDelta(rbytes)
-			if rbytes > probe_max_read_bw {
-				probe_max_read_bw = rbytes
-			}
-
-			wbytes := uint64(float64(wr - s.last.write_bytes) / time_diff.Seconds())
-			wdelta, wformat := formatDelta(wbytes)
-			if wbytes > probe_max_write_bw {
-				probe_max_write_bw = wbytes
-			}
-			fmt.Fprintf(os.Stderr, "%3d %s / %3d %s\t\t", rdelta, rformat, wdelta, wformat)
-			fmt.Fprintf(os.Stderr, "%5d / %5d",
-				uint64(float64(rdops - s.last.read_ops) / time_diff.Seconds()),
-				uint64(float64(wrops - s.last.write_ops) / time_diff.Seconds()))
-			fmt.Fprintf(os.Stderr, "\n")
-		}
-
-		s.last.read_bytes = rd
-		s.last.write_bytes = wr
-		s.last.read_ops = rdops
-		s.last.write_ops = wrops
-		s.timestamp = time.Now()	// TODO: we miss some ns by taking another ts
-		s.usable = true
+		ProcessData(s, rd, wr, rdops, wrops)
 	}
 	return nil
 }
@@ -1369,9 +1343,14 @@ func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint
 			fmt.Fprintf(os.Stderr, "error: implausible value for droplet blkio\n")
 		}
 
-		o.ID = d.ID
+		if d.ptype == TypeVM {
+			o.ID = d.ID
+		} else {
+			o.ID = -1
+		}
 		o.pid = d.pid
 		o.timestamp = d.timestamp
+		o.name = d.dir
 
 		// read - write bandwith during cycle
 		o.rd_bytes = uint64(float64(rd - d.last.read_bytes) / time_diff.Seconds())

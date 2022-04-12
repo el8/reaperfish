@@ -20,6 +20,7 @@ Bugs
 - histogram mode needs a completely new display routine
   -> unify GetDropletData mit GetServiceData
 - take IOPS from BPF rather than from cgroups! need BPF to export these
+- rename dir -> name
 
 
 Feats
