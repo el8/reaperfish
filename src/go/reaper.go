@@ -733,6 +733,7 @@ func GetServiceIDs() (error) {
 	}
 
 	// find dead services
+	/*
 	for _, s := range pinfo {
 		if s.scanned == false {
 			// remove service
@@ -741,12 +742,14 @@ func GetServiceIDs() (error) {
 			k.Pid = uint32(s.pid)
 			// Deleting a process directly from the BPF map should be race-safe
 			// as the process is gone and no new events will therefore be added from BPF side
+			// BUG: SIGSEGV, racy with BPF side?
 			if err := hists.Delete(&k); err != nil {
 				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", s.pid, err)
 			}
 			delete(pinfo, s.pid)
 		}
 	}
+	*/
 
 	return nil
 }
@@ -1411,7 +1414,10 @@ func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint
 		d.lat_read_avg = lat_rd_avg
 		d.lat_write_avg = lat_wr_avg
 
-		PrintData(&o)
+		// only print data if non-zero
+		if o.rd_perc != 0 || o.wr_perc != 0 || o.rd_ops != 0 || o.wr_ops != 0 {
+			PrintData(&o)
+		}
 	}
 
 	d.last.read_bytes = rd
