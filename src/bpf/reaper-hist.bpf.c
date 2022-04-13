@@ -91,41 +91,6 @@ static __always_inline u64 log2l(u64 v)
                 return log2(v);
 }
 
-static __always_inline
-int disk_traced(struct bio *bio)
-{
-	struct block_device *bdev;
-	struct gendisk *disk;
-	u32 major, minor;
-
-	bdev = BPF_CORE_READ(bio, bi_bdev);
-        disk = BPF_CORE_READ(bdev, bd_disk);
-	major = BPF_CORE_READ(disk, major);
-	minor = BPF_CORE_READ(disk, first_minor);
-
-	// drop all events that are not originating from lvm/dm, can even filter for /var/lib/libvirt/images
-	// this needs either hardcoded major:minor values or some better way of telling BPF what to filter here
-	if (major != 253)
-		return 0;
-	else
-		return 1;
-}
-
-static __always_inline
-int process_traced(void)
-{
-	char name[TASK_COMM_LEN];
-	const char filter[] = "qemu-system-x86_64";
-	bpf_get_current_comm(&name, sizeof(name));
-
-	// LLVM issue, no memcmp available
-	//return __builtin_memcmp(filter, (const char *)name, 18) == 0;
-	if (name[0] == 'q' && name[1] == 'e' && name[2] == 'm' && name[3] == 'u')
-		return 1;
-	else
-		return 0;
-}
-
 #define PT_REGS_PARM1(x) ((x)->di)
 #define PT_REGS_PARM2(x) ((x)->si)
 
