@@ -1427,6 +1427,30 @@ func ParseServices() (error) {
 	return err
 }
 
+func ParseBPF() (error) {
+	/*
+        var k iodataKey
+        var v iodataVal
+
+        keys := make(map[int32]iodataVal)
+        iter := iodataMap.Iterate()
+
+        for iter.Next(&k, &v) {
+                keys[k.Pid] = v
+        }
+
+        for k := range keys {
+                if _, ok := dropletPIDs[k]; !ok {
+                        err := removeDropletEntry(k)
+                        if err != nil {
+                                log.KV("pid", k).Warn("unable to remove pid entry from the iodata map")
+                        }
+                }
+        }
+	*/
+        return nil
+}
+
 func printHeader() () {
 	fmt.Fprintf(os.Stderr, "Droplet\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
 	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
@@ -1703,6 +1727,11 @@ func main() {
 		err = ParseServices()
 		if err != nil {
 			panic("Error ParseServices:" + err.Error())
+		}
+
+		err = ParseBPF()
+		if err != nil {
+			panic("Error ParseBPF:" + err.Error())
 		}
 
 		err = GetHVData()
