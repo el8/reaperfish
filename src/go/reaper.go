@@ -569,25 +569,32 @@ var blkioThrottleWrites string
 
 // Get cgroup configuration on the HV
 func ConfigureCgroupVars() (error) {
-	// TODO: fix this mess, get cgroup version via mount
-	/*
-	if _, err := os.Stat("/sys/fs/cgroup/machine.slice"); os.IsNotExist(err) {
-		// cgroupv1 based configuration
-		cgroupVersion = 1
-		basedirCgroupVM = "/sys/fs/cgroup/blkio/machine.slice/"
-		basedirCgroupHV = "/sys/fs/cgroup/blkio/system.slice/"
-		fmt.Fprintf(os.Stderr, "cgroupv1 detected\n")
-	} else {
-	*/
-		// cgroupv2 based configuration
-		cgroupVersion = 2
-		basedirCgroupHV = "/sys/fs/cgroup/system.slice/"
-		blkioServiceBytes = "io.stat"
-		blkioServiced = "io.stat"
-		blkioThrottleReads = "io.max"
-		blkioThrottleWrites = "io.max"
-		fmt.Fprintf(os.Stderr, "cgroupv2 assumed\n")
-	//}
+
+	f, err := os.Open("/proc/mounts")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		// format: cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot 0 0
+		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		if fields[0] == "cgroup2" {
+			cgroupVersion = 2
+			fmt.Fprintf(os.Stderr, "Found cgroupv2\n")
+		}
+	}
+
+	if cgroupVersion != 2 {
+		panic("Error: Failed to find cgroupv2")
+	}
+
+	basedirCgroupHV = "/sys/fs/cgroup/system.slice/"
+	blkioServiceBytes = "io.stat"
+	blkioServiced = "io.stat"
+	blkioThrottleReads = "io.max"
+	blkioThrottleWrites = "io.max"
 
 	if _, err := os.Stat("/sys/fs/cgroup/machine.slice"); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "No virtual machines detected\n")
@@ -756,75 +763,6 @@ func GetServiceIDs() (error) {
 
 func splitBlkIOStatLine(r rune) bool {
         return r == ' ' || r == ':' || r == '='
-}
-
-// cgroupv1: blkioServiceBytes and blkioServiced
-func ReadIOServiceFile(base, prefix string, suffix string) (uint64, uint64, error) {
-	var rd, wr uint64
-
-	path := filepath.Join(base, prefix, suffix)
-	if optDebug {
-		fmt.Fprintf(os.Stderr, "debug: reading file: %s\n", path)
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer f.Close()
-
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		// format: major:minor type amount (cgroupv1)
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
-		if len(fields) < 3 {
-			if len(fields) == 2 && fields[0] == "Total" {
-				// skip total line
-				continue
-			} else {
-				return 0, 0, fmt.Errorf("invalid line found while parsing %s: %s", path, sc.Text())
-			}
-		}
-		major, err := strconv.ParseInt(fields[0], 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-		minor, err := strconv.ParseInt(fields[1], 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		// only /var/lib/libvirt/images is relevant, as this becomes vda
-		if major != def_major || minor != def_minor {
-			continue
-		}
-
-		op := ""
-		valueField := 2
-		if len(fields) == 4 {
-			op = fields[2]
-			valueField = 3
-		}
-
-		if op == "Read"  {
-			rd, err = strconv.ParseUint(fields[valueField], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
-		} else if op == "Write" {
-			wr, err = strconv.ParseUint(fields[valueField], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
-		} else {
-			// ignore all but Read and Write
-			continue
-		}
-	}
-	if optDebug {
-		fmt.Fprintf(os.Stderr, "debug: return rd: %d  wr: %d\n", rd, wr)
-	}
-	return rd, wr, sc.Err()
 }
 
 // cgroupsv2: io.stat
@@ -1233,13 +1171,7 @@ func GetServiceData() (error) {
 	var err error
 	var rd, wr, rdops, wrops uint64
 	for _, s := range sinfo_sort {
-		rd, wr, err = ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiceBytes)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
-			return nil
-		}
-
-		rdops, wrops, err = ReadIOServiceFile(basedirCgroupHV, s.dir, blkioServiced)
+		rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupHV, s.dir, blkioServiced)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
 			return nil
@@ -1257,13 +1189,7 @@ func GetHVData() (error) {
 	var rd, wr, rdops, wrops uint64
 	var err error
 
-	if cgroupVersion == 1 {
-		rd, wr, rdops, wrops, err = ReadDiskstatFile("/sys/block/md1/stat", "", "")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: reading diskstats for HV\n")
-			return nil
-		}
-	} else if cgroupVersion == 2 {
+	if cgroupVersion == 2 {
 		rd, wr, rdops, wrops, err = ReadIOServiceFilev2("/sys/fs/cgroup/", "", blkioServiced)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: reading total stats for HV\n")
@@ -1454,19 +1380,7 @@ func GetDropletData() error {
 
 	var rd, wr, rdops, wrops uint64
 	for _, d := range dinfo_sort {
-		if cgroupVersion == 1 {
-			rd, wr, err = ReadIOServiceFile(basedirCgroupVM, d.dir, blkioServiceBytes)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: reading file for droplet: %s\n", d.dir)
-				continue
-			}
-
-			rdops, wrops, err = ReadIOServiceFile(basedirCgroupVM, d.dir, blkioServiced)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: reading file for droplet\n")
-				return nil
-			}
-		} else if cgroupVersion == 2 {
+		if cgroupVersion == 2 {
 			rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupVM, d.dir, blkioServiced)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: reading file for droplet\n")
