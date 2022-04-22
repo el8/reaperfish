@@ -45,6 +45,8 @@ Bugs
   https://www.sartura.hr/blog/simple-ebpf-core-application/
   panic: Error ebpf.LoadCollectionSpecFromReader:load BTF: reference to .kconfig: not supported
   CollectionSpec RewriteConstants ?
+  geht es mit golang nicht wegen skel C libbpf extern patching?
+  fixupDatasec in internal/btf/btf.go behauptet section waere .kconfig, ist es aber nicht!
 
 
 Feats
