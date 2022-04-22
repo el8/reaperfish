@@ -6,8 +6,7 @@
 #include "bpf/bpf_core_read.h"
 #include "bpf/bpf_tracing.h"
 
-#include <linux/version.h>
-extern int LINUX_KERNEL_VERSION __kconfig;
+extern u32 LINUX_KERNEL_VERSION __kconfig;
 
 // BTF doesn't support defines. Keep these in sync with kernel!
 #define REQ_OP_BITS	8
@@ -88,6 +87,8 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 {
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
+
+	bpf_printk("kernel version: %d\n", LINUX_KERNEL_VERSION);
 
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 
@@ -171,4 +172,3 @@ cleanup:
 }
 
 char _license[] SEC("license") = "GPL";
-u32 _version SEC("version") = LINUX_VERSION_CODE;
