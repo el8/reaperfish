@@ -1690,9 +1690,11 @@ func main() {
 
 	if !optBPFHist {
 		bpfprogramFile = "./reaper-log.bpf.o"
+		fmt.Fprintf(os.Stderr, "Mode: 1:1 log using %s\n", bpfprogramFile)
 		go run_bpf_log()
 	} else {
 		bpfprogramFile = "./reaper-hist.bpf.o"
+		fmt.Fprintf(os.Stderr, "Mode: histogram using %s\n", bpfprogramFile)
 		go run_bpf_hist()
 	}
 
