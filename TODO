@@ -22,6 +22,29 @@ Bugs
 - take IOPS from BPF rather than from cgroups! need BPF to export these
   -> do next to remove error: reading file for HV (to make service data work)
 - rename dir -> name
+- warum sehe ich reads nicht?
+  sudo dd if=/dev/sda of=/dev/zero
+  ./reaper -major 8 -minor 0 -log-events
+  -> argh, missing complete event for bio... WTF
+              dd-11188   [002] .....  7106.277703: block_bio_queue: 8,0 RA 126004424 + 256 [dd]
+              dd-11188   [002] .....  7106.277704: block_getrq: 8,0 RA 126004424 + 256 [dd]
+              dd-11188   [002] .....  7106.277704: block_plug: [dd]
+              dd-11188   [002] .....  7106.277704: block_unplug: [dd] 1
+              dd-11188   [002] ...1.  7106.277704: block_rq_insert: 8,0 RA 131072 () 126004424 + 256 [dd]
+              dd-11188   [002] ...1.  7106.277704: block_rq_issue: 8,0 RA 131072 () 126004424 + 256 [dd]
+          <idle>-0       [002] ..s1.  7106.278076: block_rq_complete: 8,0 RA () 126004168 + 256 [0]
+              dd-11188   [002] .....  7106.278171: block_bio_queue: 8,0 RA 126004680 + 256 [dd]
+              dd-11188   [002] .....  7106.278172: block_getrq: 8,0 RA 126004680 + 256 [dd]
+              dd-11188   [002] .....  7106.278172: block_plug: [dd]
+              dd-11188   [002] .....  7106.278172: block_unplug: [dd] 1
+              dd-11188   [002] ...1.  7106.278172: block_rq_insert: 8,0 RA 131072 () 126004680 + 256 [dd]
+              dd-11188   [002] ...1.  7106.278172: block_rq_issue: 8,0 RA 131072 () 126004680 + 256 [dd]
+          <idle>-0       [002] ..s1.  7106.278547: block_rq_complete: 8,0 RA () 126004424 + 256 [0]
+- non-working kernel version detection, ich glaube mir fehlt der link step zu libbpf?
+  muesste das nicht cilium-ebpf intern machen?
+  https://www.sartura.hr/blog/simple-ebpf-core-application/
+  panic: Error ebpf.LoadCollectionSpecFromReader:load BTF: reference to .kconfig: not supported
+  CollectionSpec RewriteConstants ?
 
 
 Feats
