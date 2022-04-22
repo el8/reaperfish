@@ -28,7 +28,7 @@ $(OBJS):  %.o:%.c
 	llvm-strip -g $(BUILDDIR)/$@
 # workaround for: panic: program ...: load BTF: invalid argument: magic: 0xeb9f
 # https://github.com/cilium/ebpf/issues/43
-#	llvm-strip $(BUILDDIR)/$@ --no-strip-all -R .BTF
+	llvm-strip $(BUILDDIR)/$@ --no-strip-all -R .BTF
 
 clean:
 	@rm $(OBJS)
