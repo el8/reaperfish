@@ -293,7 +293,9 @@ func run_bpf_log() {
 
 			// Filter devices we don't want to track.
 			if int64(event.Major) != def_major || int64(event.Minor) != def_minor {
-				fmt.Fprintf(os.Stdout, "dropping event for disk %d:%d\n", event.Major, event.Minor)
+				if optDebug {
+					fmt.Fprintf(os.Stdout, "debug: dropping event for disk %d:%d\n", event.Major, event.Minor)
+				}
 				continue
 			}
 
