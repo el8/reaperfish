@@ -287,12 +287,13 @@ func run_bpf_log() {
 			}
 
 			// ignore all but read and write
-			if event.RWFlag == REQ_OP_READ || event.RWFlag == REQ_OP_WRITE {
-				continue
-			}
+			//if event.RWFlag == REQ_OP_READ || event.RWFlag == REQ_OP_WRITE {
+			//	continue
+			//}
 
 			// Filter devices we don't want to track.
 			if int64(event.Major) != def_major || int64(event.Minor) != def_minor {
+				fmt.Fprintf(os.Stdout, "dropping event for disk %d:%d\n", event.Major, event.Minor)
 				continue
 			}
 
@@ -1655,12 +1656,19 @@ func main() {
 		panic("Error ParseVMs:" + err.Error())
 	}
 
+	// TODO: unconditionally force bio mode as req mode isn't supported for now
+	optTraceReq = false
+	optTraceBio = true
+
 	if !optTraceReq && !optTraceBio {
-		optTraceBio = true;
+		optTraceBio = true
 	}
 
-	if optTraceReq && optTraceBio {
-		fmt.Fprintf(os.Stderr, "Info: Both -trace-req and -trace-bio selected\n")
+	if optTraceReq {
+		fmt.Fprintf(os.Stderr, "Request tracing enabled\n")
+	}
+	if optTraceBio {
+		fmt.Fprintf(os.Stderr, "Bio tracing enabled\n")
 	}
 
 	if optCSV {
