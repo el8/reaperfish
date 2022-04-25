@@ -19,7 +19,7 @@ $(OBJS):  %.o:%.c
 		-Wno-unknown-warning-option \
 		-fno-stack-protector -fno-jump-tables -fno-unwind-tables -fno-asynchronous-unwind-tables \
 		-xc \
-		-I ./include -I /libbpf/src/root/usr/include \
+		-I ./include \
 		-g -O2 \
 		-target bpf -emit-llvm -Xclang -disable-llvm-passes \
 		-c $< -o - | \
