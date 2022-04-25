@@ -9,7 +9,7 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-static volatile u32 LINUX_KERNEL_VERSION;
+extern u32 LINUX_KERNEL_VERSION __kconfig;
 
 // BTF doesn't support defines. Keep these in sync with kernel!
 #define REQ_OP_BITS	8
@@ -90,8 +90,6 @@ int BPF_PROG(trace_bio_start, struct bio *bio)
 {
 	u64 ts = bpf_ktime_get_ns();
 	u64 len;
-
-	bpf_printk("version: %d\n", LINUX_KERNEL_VERSION);
 
 	bpf_map_update_elem(&bio_start, &bio, &ts, 0);
 

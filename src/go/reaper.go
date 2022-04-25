@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"C"
-	"debug/elf"
 	"encoding/binary"
 	"io/ioutil"
 	"flag"
@@ -153,6 +152,7 @@ func run_bpf_log() {
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(program))
 	if err != nil {
 		panic("Error ebpf.LoadCollectionSpecFromReader:" + err.Error())
+
 	}
 
 	coll, err := ebpf.NewCollection(spec)
@@ -1619,35 +1619,6 @@ func isRoot() bool {
 	return currentUser.Username == "root"
 }
 
-func debugPatchBPF(name string) (error) {
-	f, err := os.Open(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Opening %s failed\n", name)
-		return err
-	}
-	_elf, err := elf.NewFile(f)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "elf.NewFile failed\n")
-		return err
-	}
-
-	fmt.Println(_elf.FileHeader)
-	fmt.Printf("ELF Type: %s\n", _elf.Type)
-	fmt.Printf("ELF Data: %s\n", _elf.Data)
-	fmt.Printf("Entry Point: %d\n", _elf.Entry)
-	//fmt.Printf("Section Addresses: %d\n", _elf.Sections)
-	for _, s := range _elf.Sections {
-		fmt.Printf("\tsection name: %s  type: %x  addr: %x  off: %x\n", s.Name, s.Type, s.Addr, s.Offset)
-	}
-	symbols, _ := _elf.Symbols()
-	for _, e := range symbols {
-		if !strings.EqualFold(e.Name, "") {
-			fmt.Printf("\tname: %s  info: %x  section: %d  val: %x  size: %d  other: %x\n", e.Name, e.Info, e.Section, e.Value, e.Size, e.Other)
-		}
-	}
-	return nil
-}
-
 func main() {
 	fmt.Fprintf(os.Stderr, "Reaper started\n")
 	if isRoot() == false {
@@ -1720,7 +1691,6 @@ func main() {
 	if !optBPFHist {
 		bpfprogramFile = "./reaper-log.bpf.o"
 		fmt.Fprintf(os.Stderr, "Mode: 1:1 log using %s\n", bpfprogramFile)
-		debugPatchBPF(bpfprogramFile)
 		go run_bpf_log()
 	} else {
 		bpfprogramFile = "./reaper-hist.bpf.o"
