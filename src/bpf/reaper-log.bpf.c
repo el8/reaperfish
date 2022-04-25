@@ -42,12 +42,12 @@ struct io_event_t {
 	u32 internal;	// 1 = req, 2 = bio
 };
 
-struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__type(key, u32);
-	__type(value, u32);
-	__uint(max_entries, MAX_ENTRIES);
-} events SEC(".maps");
+struct bpf_map_def SEC("maps/events") events = {
+	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(u32),
+	.max_entries = MAX_ENTRIES,
+};
 
 struct taskinfo_t {
 	u32 pid;
@@ -56,26 +56,26 @@ struct taskinfo_t {
 
 // hashes for bio tracking
 
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, struct bio *);
-	__type(value, struct taskinfo_t);
-	__uint(max_entries, MAX_ENTRIES);
-} bio_taskinfo SEC(".maps");
+struct bpf_map_def SEC("maps/bio_taskinfo") bio_taskinfo = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(struct bio *),
+	.value_size = sizeof(struct taskinfo_t),
+	.max_entries = MAX_ENTRIES,
+};
 
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, struct bio *);
-	__type(value, u64);
-	__uint(max_entries, MAX_ENTRIES);
-} bio_start SEC(".maps");
+struct bpf_map_def SEC("maps/bio_start") bio_start = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(struct bio *),
+	.value_size = sizeof(u64),
+	.max_entries = MAX_ENTRIES,
+};
 
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, struct bio *);
-	__type(value, u64);
-	__uint(max_entries, MAX_ENTRIES);
-} bio_len SEC(".maps");
+struct bpf_map_def SEC("maps/bio_len") bio_len = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(struct bio *),
+	.value_size = sizeof(u64),
+	.max_entries = MAX_ENTRIES,
+};
 
 /*
  * Raw tracepoint args are from the tracepoints _before_ TP_fast_assign
