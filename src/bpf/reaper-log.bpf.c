@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2022 Jan Glauber
+
 // bpftool btf dump file /sys/kernel/btf/vmlinux format c
 #include "include/vmlinux.h"
 
