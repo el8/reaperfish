@@ -46,7 +46,10 @@ Bugs
   panic: Error ebpf.LoadCollectionSpecFromReader:load BTF: reference to .kconfig: not supported
   CollectionSpec RewriteConstants ?
   geht es mit golang nicht wegen skel C libbpf extern patching?
+  -> um libbpf zu nutzen gibt es einen bpf open call, der fehlt in cilium und wuerde die externs patchen
   fixupDatasec in internal/btf/btf.go behauptet section waere .kconfig, ist es aber nicht!
+  -> einfach binary patchen von golang aus!
+  -> oder volatile global variable (aber wie sollte ich die von golang aus aendern?)
 
 
 Feats
