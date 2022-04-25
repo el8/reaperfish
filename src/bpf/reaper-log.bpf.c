@@ -1,10 +1,10 @@
 // bpftool btf dump file /sys/kernel/btf/vmlinux format c
 #include "include/vmlinux.h"
 
-// from kernel tools/lib/bpf/
-#include "bpf/bpf_helpers.h"
-#include "bpf/bpf_core_read.h"
-#include "bpf/bpf_tracing.h"
+// from kernel tools/lib/bpf/ or libbpf-dev
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
+#include <bpf/bpf_tracing.h>
 
 extern u32 LINUX_KERNEL_VERSION __kconfig;
 
