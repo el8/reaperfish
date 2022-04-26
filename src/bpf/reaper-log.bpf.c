@@ -126,9 +126,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 		return 0;   // missed issue or disk not traced
 	}
 
-	kver = bpf_map_lookup_elem(&version, &key);
-	bpf_printk("kver: %d\n", kver >> 16);
-
 	data.sector = BPF_CORE_READ(bio, bi_iter.bi_sector);
 	// ignore if sector is 0
 	if (!data.sector) {
