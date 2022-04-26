@@ -9,8 +9,6 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-extern u32 LINUX_KERNEL_VERSION __kconfig;
-
 // BTF doesn't support defines. Keep these in sync with kernel!
 #define REQ_OP_BITS	8
 #define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
@@ -40,6 +38,13 @@ struct io_event_t {
 	char name[TASK_COMM_LEN];
 	char disk_name[DISK_NAME_LEN];
 	u32 internal;	// 1 = req, 2 = bio
+};
+
+struct bpf_map_def SEC("maps/version") version = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(u32),
+	.max_entries = 1,
 };
 
 struct bpf_map_def SEC("maps/events") events = {
@@ -112,12 +117,17 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	struct io_event_t data = {};
 	struct taskinfo_t *ti;
 	u64 *tsp, *lenp, delta;
+	u32 key = 1;
+	u32 kver = 0;
 
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
 	if (!tsp) {
 		return 0;   // missed issue or disk not traced
 	}
+
+	kver = bpf_map_lookup_elem(&version, &key);
+	bpf_printk("kver: %d\n", kver >> 16);
 
 	data.sector = BPF_CORE_READ(bio, bi_iter.bi_sector);
 	// ignore if sector is 0

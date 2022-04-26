@@ -127,7 +127,98 @@ func name_goroutine(name string) {
 	}
 }
 
+// I'm soo glad golang is easier than C...
+func getKernelVersion() (int, int, int, error) {
+	var (
+		uts                  syscall.Utsname
+		kernel, major, minor int
+		err                  error
+	)
+
+	if err := syscall.Uname(&uts); err != nil {
+		return 0, 0, 0, err
+	}
+
+	release := make([]byte, len(uts.Release))
+
+	i := 0
+	for _, c := range uts.Release {
+		release[i] = byte(c)
+		i++
+	}
+
+	// Remove the \x00 from the release for Atoi to parse correctly
+	release = release[:bytes.IndexByte(release, 0)]
+
+	tmp := strings.SplitN(string(release), "-", 2)
+	tmp2 := strings.SplitN(tmp[0], ".", 3)
+
+	if len(tmp2) > 0 {
+		kernel, err = strconv.Atoi(tmp2[0])
+		if err != nil {
+			return 0, 0, 0, err
+		}
+	}
+
+	if len(tmp2) > 1 {
+		major, err = strconv.Atoi(tmp2[1])
+		if err != nil {
+			return 0, 0, 0, err
+		}
+	}
+
+	if len(tmp2) > 2 {
+		minor, err = strconv.Atoi(tmp2[2])
+		if err != nil {
+			return 0, 0, 0, err
+		}
+	}
+
+	return kernel, major, minor, nil
+}
+
 var bpfprogramFile string
+
+type version_key struct {
+	Key	uint32
+}
+
+type version_val struct {
+	Version uint32
+}
+
+func set_version() {
+	var k version_key
+	var v version_val
+
+	// Linux kernel version: (VERSION * 65536) +(PATCHLEVEL * 256) + SUBLEVEL`, 5.10.x
+	maj, min, sub, err := getKernelVersion()
+	fmt.Fprintf(os.Stderr, "version: %d.%d.%d\n", maj, min, sub)
+
+	k.Key = 1
+	v.Version = uint32(maj * 65536 + min * 256 + sub)
+	err = version.Put(&k, &v)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "version map update failed\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "set version map to: %d\n", v.Version)
+	}
+}
+
+func get_version() {
+	var k version_key
+	var v version_val
+
+	k.Key = 1
+	err := version.Lookup(&k, &v)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "version lookup failed\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "re-read version: %d\n", v.Version)
+	}
+}
+
+var version *ebpf.Map
 
 func run_bpf_log() {
 	// subscribe to signals for terminating the program
@@ -159,6 +250,17 @@ func run_bpf_log() {
 	if err != nil {
 		panic("Error ebpf.NewCollection:" + err.Error())
 	}
+
+	// get version info map from BPF
+	version = coll.DetachMap("version")
+	if version == nil {
+		log.Fatalf("BPF version map not found")
+	} else {
+		fmt.Fprintf(os.Stderr, "Got version map\n")
+	}
+	set_version()
+	get_version()
+	defer version.Close()	// XXX TODO maybe can close it after update?
 
 	// get perf events buffer from BPF
 	events := coll.DetachMap("events")
@@ -274,6 +376,7 @@ func run_bpf_log() {
 			//}
 
 			total_events++
+
 			if record.LostSamples != 0 {
 				dropped_events += record.LostSamples
 				// lost samples contain no useful data
