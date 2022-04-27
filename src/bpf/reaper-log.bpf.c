@@ -117,7 +117,11 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	struct taskinfo_t *ti;
 	u64 *tsp, *lenp, delta;
 	u32 key = 1;
-	u32 kver = 0;
+	u32 *kver;
+
+	kver = bpf_map_lookup_elem(&version, &key);
+	if (kver)
+		bpf_printk("kver: %d\n", *kver);
 
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
