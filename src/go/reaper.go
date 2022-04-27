@@ -246,6 +246,15 @@ func run_bpf_log() {
 
 	}
 
+	var kver uint64 = 32
+	consts := map[string]interface{} {
+		"linux_kernel_version2": kver,
+        }
+
+        if err := spec.RewriteConstants(consts); err != nil {
+                panic("error RewriteConstants:" + err.Error())
+        }
+
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
 		panic("Error ebpf.NewCollection:" + err.Error())

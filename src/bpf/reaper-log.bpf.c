@@ -18,6 +18,9 @@
 #define MAX_ENTRIES	102400
 #define MAX_SLOTS	27
 
+const volatile unsigned long linux_kernel_version2;
+static int linux_kernel_version;
+
 /*
  * Warning: This must match byte-for-byte go's struct ioEvent or received data will be corrupted!
  * Also, values must align naturally to a __packed layout, e.g. adding a u32 at the beginning breaks
@@ -39,19 +42,19 @@ struct io_event_t {
 	u32 internal;	// 1 = req, 2 = bio
 };
 
-struct bpf_map_def SEC("maps/version") version = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u32),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 1);
+} version SEC(".maps");
 
-struct bpf_map_def SEC("maps/events") events = {
-	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u32),
-	.max_entries = MAX_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, MAX_ENTRIES);
+} events SEC(".maps");
 
 struct taskinfo_t {
 	u32 pid;
@@ -60,26 +63,26 @@ struct taskinfo_t {
 
 // hashes for bio tracking
 
-struct bpf_map_def SEC("maps/bio_taskinfo") bio_taskinfo = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct bio *),
-	.value_size = sizeof(struct taskinfo_t),
-	.max_entries = MAX_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, struct bio *);
+	__type(value, struct taskinfo_t);
+	__uint(max_entries, MAX_ENTRIES);
+} bio_taskinfo SEC(".maps");
 
-struct bpf_map_def SEC("maps/bio_start") bio_start = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct bio *),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, struct bio *);
+	__type(value, u64);
+	__uint(max_entries, MAX_ENTRIES);
+} bio_start SEC(".maps");
 
-struct bpf_map_def SEC("maps/bio_len") bio_len = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct bio *),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, struct bio *);
+	__type(value, u64);
+	__uint(max_entries, MAX_ENTRIES);
+} bio_len SEC(".maps");
 
 /*
  * Raw tracepoint args are from the tracepoints _before_ TP_fast_assign
@@ -119,10 +122,20 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	u32 key = 1;
 	u32 *kver;
 
-	kver = bpf_map_lookup_elem(&version, &key);
-	if (kver)
-		bpf_printk("kver: %d\n", *kver);
+	if (!linux_kernel_version) {
+		kver = bpf_map_lookup_elem(&version, &key);
+		if (kver) {
+			bpf_printk("got kver from golang: %d\n", *kver);
+			linux_kernel_version = *kver;
+		}
+	}
+	bpf_printk("const linux_kernel_version: %d\n", linux_kernel_version2);
 
+#if linux_kernel_version2 == 32
+	bpf_printk("foo\n");
+#else
+	bpf_printk("bar\n");
+#endif
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
 	if (!tsp) {
@@ -158,7 +171,7 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 		bpf_get_current_comm(&data.name, sizeof(data.name));
 		data.pid = bpf_get_current_pid_tgid() >> 32;
 	} else {
-		data.pid = BPF_CORE_READ(ti, pid);
+		data.pid = ti->pid;
 		bpf_probe_read_kernel_str(&data.name, sizeof(data.name), ti->name);
 	}
 

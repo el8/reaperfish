@@ -102,6 +102,9 @@ Symbol table '.symtab' contains 16 entries:
   -> merken, fuer welchen Kern BPF object compiliert wurde!
 
 - cilium asm builtin BPF code verstehen, vielleicht ist das einfacher zu benutzen??? (und hat neue bugs...)
+- avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
+- 5th way: see cilium/ebpf-go channel -> RewriteConts (bringt aber gleichen Fehler Error ebpf.LoadCollectionSpecFromReader:load data sections: data sections require BTF, make sure all consts are marked as static
+  -> figure out if/how this can be used in preprocessor login blocks
 
 Feats
 -----

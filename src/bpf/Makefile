@@ -28,9 +28,6 @@ $(OBJS):  %.o:%.c
 		$(OPT) -O2 -mtriple=bpf-pc-linux | $(LLVM_DIS) | \
 		$(LLC) -march=bpf $(LLC_FLAGS) -filetype=obj -o $(BUILDDIR)/$@
 	llvm-strip -g $(BUILDDIR)/$@
-# workaround for: panic: program ...: load BTF: invalid argument: magic: 0xeb9f
-# https://github.com/cilium/ebpf/issues/43
-	llvm-strip $(BUILDDIR)/$@ --no-strip-all -R .BTF
 
 # TODO: genereate stripped down version of vmlinux.h to reduce kernel change flux
 vmlinux:
