@@ -95,6 +95,11 @@ Symbol table '.symtab' contains 16 entries:
  
   panic: Error ebpf.LoadCollectionSpecFromReader:load data sections: data sections require BTF, make sure all consts are marked as static
 
+  -> 4th possibility: use bpf helper to read sysctl to read kernel/osrelease!
+
+- multi-kernel support:
+  vmlinux.h ist kernel specific, golang start -> kernel version check -> figure out which BPF object / vmlinux to use -> compile
+
 
 Feats
 -----
