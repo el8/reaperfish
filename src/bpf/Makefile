@@ -1,4 +1,4 @@
-all: build
+all: vmlinux build
 
 BUILDDIR = ../../build
 OBJS = reaper-log.bpf.o reaper-hist.bpf.o
@@ -9,6 +9,7 @@ LLC ?= llc
 OPT ?= opt
 LLVM_DIS ?= llvm-dis
 LLC_FLAGS += -mattr=dwarfris
+BPFTOOL ?= bpftool
 
 $(OBJS):  %.o:%.c
 	$(CLANG) -D__KERNEL__ -D__ASM_SYSREG_H -D__BPF_TRACING__ \
@@ -19,7 +20,7 @@ $(OBJS):  %.o:%.c
 		-Wno-unknown-warning-option \
 		-fno-stack-protector -fno-jump-tables -fno-unwind-tables -fno-asynchronous-unwind-tables \
 		-xc \
-		-I ./include \
+		-I $(BUILDDIR) \
 		-g -O2 \
 		-target bpf -emit-llvm -Xclang -disable-llvm-passes \
 		-c $< -o - | \
@@ -29,6 +30,10 @@ $(OBJS):  %.o:%.c
 # workaround for: panic: program ...: load BTF: invalid argument: magic: 0xeb9f
 # https://github.com/cilium/ebpf/issues/43
 	llvm-strip $(BUILDDIR)/$@ --no-strip-all -R .BTF
+
+# TODO: genereate stripped down version of vmlinux.h to reduce kernel change flux
+vmlinux:
+	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $(BUILDDIR)/vmlinux.h
 
 clean:
 	@rm $(OBJS)
