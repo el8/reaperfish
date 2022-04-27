@@ -98,8 +98,10 @@ Symbol table '.symtab' contains 16 entries:
   -> 4th possibility: use bpf helper to read sysctl to read kernel/osrelease!
 
 - multi-kernel support:
-  vmlinux.h ist kernel specific, golang start -> kernel version check -> figure out which BPF object / vmlinux to use -> compile
+  -> re-compile BPF on load, requires full build tools on target, so need a way to avoid this!
+  -> merken, fuer welchen Kern BPF object compiliert wurde!
 
+- cilium asm builtin BPF code verstehen, vielleicht ist das einfacher zu benutzen??? (und hat neue bugs...)
 
 Feats
 -----
@@ -116,10 +118,7 @@ Feats
 
 BPF
 ---
-- decide on minimal kernel version to support, 5.10+? focal? and required dependencies (libbpf),
-- improve kernel version logic in BPF code
-- Try to support kernel invariants (5.4, 5.10, 5.10+)
-- add vmlinux.h extraction to Makefile (check if not exists, then create, move vmlinux.h into build dir)
+- decide on minimal kernel version to support, 5.10+? focal?
 - bi_disk is replaced by struct block_device *bi_bdev 309dca309fc39a9e3c31b916393b74bd174fd74e after 5.9
 - block_bio_complete: error argument got removed, need to deal with both variants for 5.4
   commit d24de76af836260a99ca2ba281a937bd5bc55591
