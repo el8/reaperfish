@@ -10,9 +10,10 @@ OPT ?= opt
 LLVM_DIS ?= llvm-dis
 LLC_FLAGS += -mattr=dwarfris
 BPFTOOL ?= bpftool
+LINUX_KERNEL_VERSION := $(shell uname -r)
 
 $(OBJS):  %.o:%.c
-	$(CLANG) -D__KERNEL__ -D__ASM_SYSREG_H -D__BPF_TRACING__ \
+	$(CLANG) -D__KERNEL__ -D__ASM_SYSREG_H -D__BPF_TRACING__ -DLINUX_KERNEL_VERSION \
 		-Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-unknown-attributes \
 		-Wno-int-to-void-pointer-cast -Wno-implicit-function-declaration -Wno-int-conversion \
 		-Wno-gnu-variable-sized-type-not-at-end \

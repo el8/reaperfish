@@ -8,9 +8,6 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-#include <linux/version.h>
-extern int LINUX_KERNEL_VERSION __kconfig;
-
 // BTF doesn't support defines. Keep these in sync with kernel!
 #define REQ_OP_BITS	8
 #define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
@@ -261,4 +258,3 @@ cleanup:
 }
 
 char _license[] SEC("license") = "GPL";
-u32 _version SEC("version") = LINUX_VERSION_CODE;
