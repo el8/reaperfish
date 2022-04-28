@@ -721,7 +721,7 @@ func ConfigureCgroupVars() (error) {
 	return nil
 }
 
-// Get droplet-IDs parsing blkio cgroup (avoiding libvirt)
+// Get VM-IDs parsing blkio cgroup (avoiding libvirt)
 func GetDropletIDs() (error) {
 	// mark all existing droplets to detect dead ones
 	for _, d := range pinfo {
@@ -741,8 +741,10 @@ func GetDropletIDs() (error) {
 			continue
 		}
 
-		// Cut droplet-ID from machine-qemu\x2d8146\x2dDroplet\x2d3949745.scope
-		ID, err := strconv.ParseInt(strings.Split(strings.TrimPrefix(dirCgroup.Name(), "machine-qemu\\x2d"), "\\x2dDroplet")[0], 10, 64)
+		// Cut VM-ID from dir
+		// format: machine-qemu \x2d 200 \x2d Droplet\x2d8599157.scope
+		//                           vm-id    vm-name
+		ID, err := strconv.ParseInt(strings.Split(strings.TrimPrefix(dirCgroup.Name(), "machine-qemu\\x2d"), "\\x2d")[0], 10, 64)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "unknown dir")
 			continue
