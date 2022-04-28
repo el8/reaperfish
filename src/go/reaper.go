@@ -303,19 +303,6 @@ func run_bpf_log() {
 			log.Fatalf("opening block_bio_complete : %s", err)
 	        }
 		defer tp2.Close()
-
-		/*
-		prog_tp3 := coll.DetachProgram("trace_bio_remap")
-		defer prog_tp3.Close()
-		tp3, err := link.AttachRawTracepoint(link.RawTracepointOptions{
-	                Name:    "block_bio_remap",
-		        Program: prog_tp3,
-	        })
-		if err != nil {
-			log.Fatalf("opening block_bio_remap: %s", err)
-	        }
-		defer tp3.Close()
-		*/
 	}
 
 	// bpf perf event reading func
