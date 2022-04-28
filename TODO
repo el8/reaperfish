@@ -19,6 +19,7 @@ Bugs
   -> unify GetDropletData mit GetServiceData
 - take IOPS from BPF rather than from cgroups! need BPF to export these
   -> do next to remove error: reading file for HV (to make service data work)
+- Adopt GetDropletIDs to non DO-world
 - rename dir -> name
 - warum sehe ich reads nicht?
   sudo dd if=/dev/sda of=/dev/zero
@@ -38,71 +39,12 @@ Bugs
               dd-11188   [002] ...1.  7106.278172: block_rq_insert: 8,0 RA 131072 () 126004680 + 256 [dd]
               dd-11188   [002] ...1.  7106.278172: block_rq_issue: 8,0 RA 131072 () 126004680 + 256 [dd]
           <idle>-0       [002] ..s1.  7106.278547: block_rq_complete: 8,0 RA () 126004424 + 256 [0]
-- non-working kernel version detection, ich glaube mir fehlt der link step zu libbpf?
-  muesste das nicht cilium-ebpf intern machen?
-  https://www.sartura.hr/blog/simple-ebpf-core-application/
-  panic: Error ebpf.LoadCollectionSpecFromReader:load BTF: reference to .kconfig: not supported
-  CollectionSpec RewriteConstants ?
-  geht es mit golang nicht wegen skel C libbpf extern patching?
-  -> um libbpf zu nutzen gibt es einen bpf open call, der fehlt in cilium und wuerde die externs patchen
-  fixupDatasec in internal/btf/btf.go behauptet section waere .kconfig, ist es aber nicht!
-  -> einfach binary patchen von golang aus!
-  -> oder volatile global variable (aber wie sollte ich die von golang aus aendern?)
-
-  [Nr] Name              Type             Address           Offset
-       Size              EntSize          Flags  Link  Info  Align
-   ...
-  [ 8] .symtab           SYMTAB           0000000000000000  00000e70  <-- Offset
-       0000000000000180  0000000000000018          12     8     8
-   ...
-  [12] .strtab           STRTAB           0000000000000000  00001710
-       00000000000000fe  0000000000000000           0     0     1
-
-Symbol table '.symtab' contains 16 entries:
-   Num:    Value          Size Type    Bind   Vis      Ndx Name
-     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 0000000000000000     0 SECTION LOCAL  DEFAULT    2 raw_tracepoint/b[...]
-     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    3 raw_tracepoint/b[...]
-     3: 00000000000004d8     0 NOTYPE  LOCAL  DEFAULT    3 LBB1_9
-     4: 0000000000000468     0 NOTYPE  LOCAL  DEFAULT    3 LBB1_8
-     5: 0000000000000300     0 NOTYPE  LOCAL  DEFAULT    3 LBB1_4
-     6: 0000000000000378     0 NOTYPE  LOCAL  DEFAULT    3 LBB1_5
-     7: 00000000000003b8     0 NOTYPE  LOCAL  DEFAULT    3 LBB1_7
-     8: 0000000000000000   496 FUNC    GLOBAL DEFAULT    2 trace_bio_start
-     9: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND LINUX_KERNEL_VERSION
-    10: 0000000000000040    32 OBJECT  GLOBAL DEFAULT    5 bio_start
-    11: 0000000000000020    32 OBJECT  GLOBAL DEFAULT    5 bio_taskinfo
-    12: 0000000000000060    32 OBJECT  GLOBAL DEFAULT    5 bio_len
-    13: 0000000000000000  1256 FUNC    GLOBAL DEFAULT    3 trace_bio_done
-    14: 0000000000000000    32 OBJECT  GLOBAL DEFAULT    5 events
-    15: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    4 _license
-
-  ELF symbol table entry is 24 bytes (strings are afterwards), so: section offset + index * 24
-
-  typedef struct {	-> f48
-	Elf64_Word st_name;  /* (4 bytes) Symbol name  */			b7 00 00 00 (1710 + b7 -> LINUX_... string)
-	unsigned char st_info;  /* (1 byte) Symbol type and binding */		10
-	unsigned char st_other; /* (1 byte) Symbol visibility */		00
-	Elf64_Section st_shndx; /* (2 bytes) Section index */ 			00 00
-	Elf64_Addr st_value; /* (8 bytes) Symbol value */			0
-	Elf64_Xword st_size; /*  (8 bytes) Symbol size */			0
-} Elf64_Sym;
-
-  static volatile u32 LINUX_KERNEL_VERSION;
-       2: 0000000000000000     4 OBJECT  LOCAL  DEFAULT   10 LINUX_KERNEL_VERSION
- 
-  panic: Error ebpf.LoadCollectionSpecFromReader:load data sections: data sections require BTF, make sure all consts are marked as static
-
-  -> 4th possibility: use bpf helper to read sysctl to read kernel/osrelease!
-
 - multi-kernel support:
   -> re-compile BPF on load, requires full build tools on target, so need a way to avoid this!
   -> merken, fuer welchen Kern BPF object compiliert wurde!
-
 - cilium asm builtin BPF code verstehen, vielleicht ist das einfacher zu benutzen??? (und hat neue bugs...)
+  -> koennte TP progs von golang aus fuer verschiedene TP sigs generieren!
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
-- 5th way: see cilium/ebpf-go channel -> RewriteConts (bringt aber gleichen Fehler Error ebpf.LoadCollectionSpecFromReader:load data sections: data sections require BTF, make sure all consts are marked as static
-  -> figure out if/how this can be used in preprocessor login blocks
 
 Feats
 -----
