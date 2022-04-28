@@ -772,7 +772,8 @@ func GetServiceIDs() (error) {
 			return err
 		}
 		if pid == 0 {
-			fmt.Fprintf(os.Stderr, "error: pid is zero for service %s\n", dirCgroup.Name())
+			// seems to happen with various system.slice services
+			continue
 		}
 
 		// lookup if we know this process already
