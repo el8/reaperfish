@@ -206,10 +206,12 @@ func run_bpf_log() {
 	}
 
 	maj, min, sub, err := getKernelVersion()
-
-	var kver uint64 = uint64(maj * 65536 + min * 256 + sub)
+	if err != nil {
+		panic("Error getKernelVersion");
+	}
+	var kver uint32 = uint32(maj * 65536 + min * 256 + sub)
 	consts := map[string]interface{} {
-		"linux_kernel_version2": kver,
+		"linux_kernel_version": kver,
         }
 
         if err := spec.RewriteConstants(consts); err != nil {

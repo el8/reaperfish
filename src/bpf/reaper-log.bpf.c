@@ -18,7 +18,7 @@
 #define MAX_ENTRIES	102400
 #define MAX_SLOTS	27
 
-const volatile unsigned long linux_kernel_version2;
+const volatile unsigned int linux_kernel_version;
 
 /*
  * Warning: This must match byte-for-byte go's struct ioEvent or received data will be corrupted!
@@ -111,8 +111,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	struct io_event_t data = {};
 	struct taskinfo_t *ti;
 	u64 *tsp, *lenp, delta;
-	u32 key = 1;
-	u32 *kver;
 
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
