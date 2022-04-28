@@ -179,47 +179,6 @@ func getKernelVersion() (int, int, int, error) {
 
 var bpfprogramFile string
 
-type version_key struct {
-	Key	uint32
-}
-
-type version_val struct {
-	Version uint32
-}
-
-func set_version() {
-	var k version_key
-	var v version_val
-
-	// Linux kernel version: (VERSION * 65536) +(PATCHLEVEL * 256) + SUBLEVEL`, 5.10.x
-	maj, min, sub, err := getKernelVersion()
-	fmt.Fprintf(os.Stderr, "version: %d.%d.%d\n", maj, min, sub)
-
-	k.Key = 1
-	v.Version = uint32(maj * 65536 + min * 256 + sub)
-	err = version.Put(&k, &v)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "version map update failed\n")
-	} else {
-		fmt.Fprintf(os.Stderr, "set version map to: %d\n", v.Version)
-	}
-}
-
-func get_version() {
-	var k version_key
-	var v version_val
-
-	k.Key = 1
-	err := version.Lookup(&k, &v)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "version lookup failed\n")
-	} else {
-		fmt.Fprintf(os.Stderr, "re-read version: %d\n", v.Version)
-	}
-}
-
-var version *ebpf.Map
-
 func run_bpf_log() {
 	// subscribe to signals for terminating the program
         stopper := make(chan os.Signal, 1)
@@ -246,30 +205,23 @@ func run_bpf_log() {
 
 	}
 
-	var kver uint64 = 32
+	maj, min, sub, err := getKernelVersion()
+
+	var kver uint64 = uint64(maj * 65536 + min * 256 + sub)
 	consts := map[string]interface{} {
 		"linux_kernel_version2": kver,
         }
 
         if err := spec.RewriteConstants(consts); err != nil {
                 panic("error RewriteConstants:" + err.Error())
-        }
+        } else {
+		fmt.Fprintf(os.Stderr, "Set kernel version to: %d.%d.%d\n", maj, min, sub)
+	}
 
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
 		panic("Error ebpf.NewCollection:" + err.Error())
 	}
-
-	// get version info map from BPF
-	version = coll.DetachMap("version")
-	if version == nil {
-		log.Fatalf("BPF version map not found")
-	} else {
-		fmt.Fprintf(os.Stderr, "Got version map\n")
-	}
-	set_version()
-	get_version()
-	defer version.Close()	// XXX TODO maybe can close it after update?
 
 	// get perf events buffer from BPF
 	events := coll.DetachMap("events")

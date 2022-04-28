@@ -19,7 +19,6 @@
 #define MAX_SLOTS	27
 
 const volatile unsigned long linux_kernel_version2;
-static int linux_kernel_version;
 
 /*
  * Warning: This must match byte-for-byte go's struct ioEvent or received data will be corrupted!
@@ -41,13 +40,6 @@ struct io_event_t {
 	char disk_name[DISK_NAME_LEN];
 	u32 internal;	// 1 = req, 2 = bio
 };
-
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, u32);
-	__type(value, u32);
-	__uint(max_entries, 1);
-} version SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -122,20 +114,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	u32 key = 1;
 	u32 *kver;
 
-	if (!linux_kernel_version) {
-		kver = bpf_map_lookup_elem(&version, &key);
-		if (kver) {
-			bpf_printk("got kver from golang: %d\n", *kver);
-			linux_kernel_version = *kver;
-		}
-	}
-	bpf_printk("const linux_kernel_version: %d\n", linux_kernel_version2);
-
-#if linux_kernel_version2 == 32
-	bpf_printk("foo\n");
-#else
-	bpf_printk("bar\n");
-#endif
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
 	if (!tsp) {
