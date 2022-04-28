@@ -9,8 +9,6 @@ Bugs
   -> no, still seeing a lot of unknown IO on 253:1 dm device...
 - BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
   maybe add to trace_req_start()
-- try removing -g and llvm strip step
-- improve bpf Makefile for all targets to build from a single rule
 - try BPF code with -Wall and remove warnings
 - Fix golang printf mess with my own wrapper
 - droplet -> VM
