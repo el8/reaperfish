@@ -20,6 +20,9 @@
 
 const volatile unsigned int linux_kernel_version;
 
+#define INT_FLAG_TRACE_REQ	1
+#define INT_FLAG_TRACE_BIO	2
+
 /*
  * Warning: This must match byte-for-byte go's struct ioEvent or received data will be corrupted!
  * Also, values must align naturally to a __packed layout, e.g. adding a u32 at the beginning breaks
@@ -38,7 +41,7 @@ struct io_event_t {
 	u64 old_sector;
 	char name[TASK_COMM_LEN];
 	char disk_name[DISK_NAME_LEN];
-	u32 internal;	// 1 = req, 2 = bio
+	u32 int_flag;
 };
 
 struct {
@@ -165,7 +168,7 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 
 	data.rwflag = BPF_CORE_READ(bio, bi_opf);
 	data.rwflag &= REQ_OP_MASK;
-	data.internal = 2;
+	data.int_flag = INT_FLAG_TRACE_BIO;
 
 	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &data, sizeof(data));
 
