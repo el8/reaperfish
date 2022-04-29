@@ -1,8 +1,8 @@
 Reaperfish TODO's 
 ~~~~~~~~~~~~~~~~~
 
-Bugs
-----
+Bugs/TODO's
+-----------
 - merge with reaperfish-cilium branch (pick histogram stuff etc.)
 - kworker threads / pagecache IO tracking (similar to existing HV services, required to see HV services)
   -> should be "fixed" by outer bio tracing
@@ -45,6 +45,7 @@ Bugs
 - cilium asm builtin BPF code verstehen, vielleicht ist das einfacher zu benutzen??? (und hat neue bugs...)
   -> koennte TP progs von golang aus fuer verschiedene TP sigs generieren!
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
+- rename splitBlkIOStatLine
 
 Feats
 -----
@@ -53,6 +54,7 @@ Feats
 - histogram/percentiles and log mode
 - document all build and run-time dependencies
 - vm-mode and process-mode (default), command line switch
+  vm: root@sake:/sys/fs/cgroup/machine.slice/machine-qemu\x2d1\x2dfedora.scope/libvirt/cgroup.procs -> PID of parent process
 - topology detection & command line switches, RAID detection logic
 - runnable on laptop and HVs!
 - minimize golang dependecies or re-write golang in C ?

@@ -99,7 +99,6 @@ func register_raw_tp(coll *ebpf.Collection, bpf_fname string, tp_name string) (e
 	if prog == nil {
 		log.Fatalf("BPF raw tracepoint %s not found", bpf_fname)
 	}
-	defer prog.Close()
 
 	tp, err := link.AttachRawTracepoint(link.RawTracepointOptions {
 		Name:    tp_name,
@@ -109,11 +108,20 @@ func register_raw_tp(coll *ebpf.Collection, bpf_fname string, tp_name string) (e
 	if err != nil {
 		log.Fatalf("opening raw tracepoint %s error: %s", tp_name, err)
         }
-        defer tp.Close()
+
 	Progs = append(Progs, prog)
 	Points = append(Points, &tp)
 	fmt.Fprintf(os.Stderr, "Attached raw tracepoint: %s\n", tp_name)
 	return nil
+}
+
+func CleanupBPF() {
+	//for _, tp := range Points {
+	//	tp.Close()
+	//}
+	for _, p := range Progs {
+		p.Close()
+	}
 }
 
 // go does not provide anything to name goroutines (that sucks but does not stop us)
@@ -175,6 +183,30 @@ func getKernelVersion() (int, int, int, error) {
 	}
 
 	return kernel, major, minor, nil
+}
+
+func detectProcessType(pid int32, comm string) process_type {
+	// check if pid is a kernel thread: /proc/pid/stat [8] flag: 0x00200000
+	kthread, err := ReadStatFile("/proc/", fmt.Sprintf("%d", pid), "/stat")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading /proc/%d/stat", pid)
+	}
+	if kthread == true {
+		fmt.Fprintf(os.Stderr, "%s -> kernel thread\n", comm)
+		return TypeKthread
+	}
+
+	// check if pid is VM: comm starts with qemu and TODO: entry in machine-qemu.../libvirt/cgroup.procs
+	if strings.HasPrefix(comm, "qemu") {
+		fmt.Fprintf(os.Stderr, "%s -> VM\n", comm)
+		return TypeVM
+	}
+
+	// optional: detect service
+
+	// pid is a "normal" process :)
+	fmt.Fprintf(os.Stderr, "%s -> process\n", comm)
+	return TypeProcess
 }
 
 var bpfprogramFile string
@@ -281,7 +313,6 @@ func run_bpf_log() {
 	if optTraceBio {
 		//register_raw_tp(coll, "trace_bio_start", "block_bio_queue")
 		//register_raw_tp(coll, "trace_bio_done", "block_bio_complete")
-
 		prog_tp := coll.DetachProgram("trace_bio_start")
 		defer prog_tp.Close()
 		tp, err := link.AttachRawTracepoint(link.RawTracepointOptions{
@@ -314,11 +345,6 @@ func run_bpf_log() {
 		for {
 			record, err := rd.Read()
 			if err != nil {
-				//if perf.IsClosed(err) {
-				//	log.Println("Received signal, exiting..")
-					//panic(err)
-				//	break
-				//}
 				log.Fatalf("error reading from reader: %s", err)
 			}
 			//if optDebug {
@@ -383,17 +409,12 @@ func run_bpf_log() {
 				}
 			}
 
-			// filter only qemu-system-x86_64 comm (probably misses kworker IO)
-			//if !strings.HasPrefix(comm, "qemu") {
-			//	continue
-			//}
-
 			// check if we know the PID
 			p, ok := pinfo[int(event.Pid)]
 			if !ok {
-				if optDebug {
-					fmt.Fprintf(os.Stderr, "[event] unknown pid %d ignored\n", event.Pid)
-				}
+				fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
+				str := string(event.Comm[:])
+				detectProcessType(event.Pid, str)
 				continue
 			}
 			if event.RWFlag == REQ_OP_READ {
@@ -424,7 +445,9 @@ func run_bpf_log() {
 
 	//<-stopper
 	exiting = true
+
 	// TODO: more cleanup?
+	//CleanupBPF()
 	fmt.Fprintf(os.Stderr, "Stopped BPF\n")
 }
 
@@ -545,9 +568,11 @@ type latency struct {
 type process_type int
 
 const (
-	TypeVM = iota
-	TypeHVGlobal
-	TypeService
+	TypeProcess = iota
+	TypeKthread
+	TypeVM
+	TypeHVGlobal	// XXX maybe kill
+	TypeService	// XXX maybe kill
 )
 
 // process description, this can be a droplet, HV service or other process (e.g. kworker threads)
@@ -951,6 +976,41 @@ func ReadIOThrottleFile(base, prefix string, suffix string) (uint64, error) {
 		}
 	}
 	return 0, sc.Err()
+}
+
+// return true if /proc/pid/stat is kernel thread or false otherwise
+func ReadStatFile(base, prefix string, suffix string) (bool, error) {
+	path := filepath.Join(base, prefix, suffix)
+
+	if optDebug {
+		fmt.Fprintf(os.Stderr, "debug: reading file: %s\n", path)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		if len(fields) < 9 {
+			continue
+		}
+
+		flag, err := strconv.ParseInt(fields[8], 10, 64)
+		if err != nil {
+			return false, err
+		}
+		fmt.Fprintf(os.Stderr, "flag: %x\n", flag)
+		if flag & 0x00200000 == 0x00200000 {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}
+	return false, sc.Err()
 }
 
 func ReadPIDFile(base, prefix string, suffix string) (int, error) {
