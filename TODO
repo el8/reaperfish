@@ -46,6 +46,8 @@ Bugs/TODO's
   -> koennte TP progs von golang aus fuer verschiedene TP sigs generieren!
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
 - rename splitBlkIOStatLine
+- rename optBPFHist (after downgrade of log events mode)
+
 
 Feats
 -----

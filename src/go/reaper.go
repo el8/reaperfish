@@ -707,13 +707,32 @@ func ConfigureCgroupVars() (error) {
 	return nil
 }
 
-// Get VM-IDs parsing blkio cgroup (avoiding libvirt)
-func GetDropletIDs() (error) {
-	// mark all existing droplets to detect dead ones
-	for _, d := range pinfo {
-		d.scanned = false
+func LifeCheck() {
+	// mark all existing processes to detect dead ones
+	for _, p := range pinfo {
+		p.scanned = false
 	}
 
+	// find dead processes
+	for _, p := range pinfo {
+		if p.scanned == false {
+			// remove it
+			var k hist_key
+
+			k.Pid = uint32(p.pid)
+			// Deleting a process directly from the BPF map should be race-safe
+			// as the process is gone and no new events will therefore be added from BPF side
+			if err := hists.Delete(&k); err != nil {
+				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", p.pid, err)
+			}
+			delete(pinfo, p.pid)
+		}
+	}
+}
+
+// TODO: call this with a pid on VM (qemu-) detection to fill out ID and cgroup
+// Get VM-IDs parsing blkio cgroup (avoiding libvirt)
+func GetVMIDs() (error) {
 	dirsCgroup, err := ioutil.ReadDir(basedirCgroupVM)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "blkio cgroup is not configured")
@@ -722,7 +741,7 @@ func GetDropletIDs() (error) {
 
 	// Iterate over the base directory
 	for _, dirCgroup := range dirsCgroup {
-		// Find only dirs that contain droplet info
+		// Find only dirs that contain VM info
 		if !dirCgroup.IsDir() || !strings.HasPrefix(dirCgroup.Name(), "machine-qemu") {
 			continue
 		}
@@ -741,52 +760,35 @@ func GetDropletIDs() (error) {
 		// Note: /libvirt/ component was added by a libvirt change, should be all focal and cgroupsv2
 		pid, err := ReadPIDFile(basedirCgroupVM, dirCgroup.Name(), "/libvirt/cgroup.procs")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading pid for droplet: %s\n", dirCgroup.Name())
+			fmt.Fprintf(os.Stderr, "error reading pid for VM: %s\n", dirCgroup.Name())
 			return err
 		}
 		if pid == 0 {
 			fmt.Fprintf(os.Stderr, "error: pid is zero for %s\n", dirCgroup.Name())
 		}
 
-		// lookup if we know this droplet already
-		d, ok := pinfo[pid]
+		// lookup if we know this VM already
+		v, ok := pinfo[pid]
 		if ok {
 			// just mark it
-			d.scanned = true
+			v.scanned = true
 			continue
 		} else {
 			// store VM data
-			var d *process_info
-			d = new(process_info)
-			d.pid = pid
-			d.ID = id
-			d.ptype = TypeVM
-			d.dir = dirCgroup.Name()
-			d.scanned = true
+			var v *process_info
+			v = new(process_info)
+			v.pid = pid
+			v.ID = id
+			v.ptype = TypeVM
+			v.dir = dirCgroup.Name()
+			v.scanned = true
 
-			pinfo[pid] = d
+			pinfo[pid] = v
 			if optDebug {
-				fmt.Fprintf(os.Stderr, "debug: added VM-ID: %d  info @ %p\n", id, d)
+				fmt.Fprintf(os.Stderr, "debug: added VM-ID: %d  info @ %p\n", id, v)
 			}
 		}
 	}
-
-	// find dead droplets
-	for _, d := range pinfo {
-		if d.scanned == false {
-			// remove droplet
-			var k hist_key
-
-			k.Pid = uint32(d.pid)
-			// Deleting a droplet directly from the BPF map should be race-safe
-			// as the process is gone and no new events will therefore be added from BPF side
-			if err := hists.Delete(&k); err != nil {
-				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", d.pid, err)
-			}
-			delete(pinfo, d.pid)
-		}
-	}
-
 	return nil
 }
 
@@ -1507,7 +1509,7 @@ func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint
 }
 
 // TODO: output should be a local to parent and passed to print
-func GetDropletData() error {
+func GetProcessData() error {
 	var err error
 
 	// sort droplets by droplet ID to keep output comparable between cycles
@@ -1539,15 +1541,19 @@ func ParseVMs() (error) {
 		return nil
 	}
 
-	err := GetDropletIDs()
+	err := GetVMIDs()
 	if err != nil {
 		return err
 	}
 
-	err = GetDropletData()
+	err = GetProcessData()
 	if err != nil {
                 return err
         }
+
+	if optBPFHist {
+		LifeCheck()
+	}
 
 	return err
 }
