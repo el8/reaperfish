@@ -410,13 +410,32 @@ func run_bpf_log() {
 			}
 
 			// check if we know the PID
-			p, ok := pinfo[int(event.Pid)]
-			if !ok {
+			p, known := pinfo[int(event.Pid)]
+			if !known {
 				fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
 				str := string(event.Comm[:])
-				detectProcessType(event.Pid, str)
-				continue
+
+				var p *process_info
+				p = new(process_info)
+				p.pid = int(event.Pid)
+				p.ptype = detectProcessType(event.Pid, str)
+				p.comm = str
+
+				// TODO: if VM detect ID
+				//d.ID = id
+
+				// TODO: not sure if I need this
+				//p.dir = dirCgroup.Name()
+
+				p.scanned = true
+
+				pinfo[p.pid] = p
+				if optDebug {
+					fmt.Fprintf(os.Stderr, "debug: added pid: %d  info @ %p\n", p.pid, p)
+				}
+				continue // TODO: skip processing here?
 			}
+
 			if event.RWFlag == REQ_OP_READ {
 				p.lat.read_total += event.Delta
 				if event.Delta > p.lat.read_max {
@@ -580,6 +599,7 @@ type process_info struct {
 	pid			int		// used as key in map
 	ID			int		// unique VM id (virsh list --all) for droplets
 	ptype			process_type
+	comm			string
 	dir			string
 	last			traffic
 	lat			latency
@@ -1003,7 +1023,7 @@ func ReadStatFile(base, prefix string, suffix string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		fmt.Fprintf(os.Stderr, "flag: %x\n", flag)
+
 		if flag & 0x00200000 == 0x00200000 {
 			return true, nil
 		} else {
