@@ -47,6 +47,7 @@ Bugs/TODO's
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
 - rename splitBlkIOStatLine
 - rename optBPFHist (after downgrade of log events mode)
+- Call GetDropletIDs only per new detected VM
 
 
 Feats

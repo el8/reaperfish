@@ -409,7 +409,7 @@ func run_bpf_log() {
 				}
 			}
 
-			// check if we know the PID
+			// check if we know the PID and create if neccesary
 			p, known := pinfo[int(event.Pid)]
 			if !known {
 				fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
@@ -433,27 +433,38 @@ func run_bpf_log() {
 				if optDebug {
 					fmt.Fprintf(os.Stderr, "debug: added pid: %d  info @ %p\n", p.pid, p)
 				}
-				continue // TODO: skip processing here?
 			}
 
+			// re-fetch p if it was re-created (why?)
+			p, known = pinfo[int(event.Pid)]
+			if !known {
+				fmt.Fprintf(os.Stderr, "error: missing pinfo!\n")
+			}
+
+			// account event
 			if event.RWFlag == REQ_OP_READ {
+				p.last.read_ops++
+				p.last.read_bytes += event.Len
 				p.lat.read_total += event.Delta
 				if event.Delta > p.lat.read_max {
 					p.lat.read_max = event.Delta
 				}
 				p.lat.read_nr++
 			} else if event.RWFlag == REQ_OP_WRITE {
+				p.last.write_ops++
+				p.last.write_bytes += event.Len
 				p.lat.write_total += event.Delta
 				if event.Delta > p.lat.write_max {
 					p.lat.write_max = event.Delta
 				}
 				p.lat.write_nr++
 			}
-			// get blocksizes
+
+			// account blocksize
 			p.bs_total += event.Len
 			p.bs_nr++
 
-			// store raw deltas for percentiles
+			// store raw deltas for percentile accounting
 			if event.RWFlag == REQ_OP_READ {
 				p.rd_perc = append(p.rd_perc, event.Delta)
 			} else if event.RWFlag == REQ_OP_WRITE {
@@ -1301,28 +1312,6 @@ func PrintData(o *output) {
 	}
 }
 
-func GetServiceData() (error) {
-	// sort services by PID to keep output comparable between cycles
-	sinfo_sort := make([]*process_info, 0, len(pinfo))
-	for _, s := range pinfo {
-		sinfo_sort = append(sinfo_sort, s)
-	}
-	sort.Sort(ByID(sinfo_sort))
-
-	var err error
-	var rd, wr, rdops, wrops uint64
-	for _, s := range sinfo_sort {
-		rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupHV, s.dir, blkioServiced)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: reading file for HV\n")
-			return nil
-		}
-
-		ProcessData(s, rd, wr, rdops, wrops)
-	}
-	return nil
-}
-
 // Total HV consumption including everything
 func GetHVData() (error) {
 	// cgroup summary is not working so use diskstats for md1 instead
@@ -1399,9 +1388,13 @@ func CalcPercentile(percent int, perc []uint64) uint64 {
 // Δ is \xce\x94
 // ⌀ is \xe2\x8c\x80
 
-// TODO: if BPF provides IOPS the extra parms can go away...
-func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint64) () {
+func ProcessData(d *process_info) () {
 	var o output
+	// TODO: cleanup
+	rd := d.last.read_bytes
+	wr := d.last.write_bytes
+	rdops := d.last.read_ops
+	wrops := d.last.write_ops
 
 	if (d.usable == true) {
 		time_diff := time.Now().Sub(d.timestamp)
@@ -1509,29 +1502,18 @@ func ProcessData(d *process_info, rd uint64, wr uint64, rdops uint64, wrops uint
 }
 
 // TODO: output should be a local to parent and passed to print
-func GetProcessData() error {
-	var err error
+func GetVMData() error {
+	// TODO: maybe split really into vinfo, pinfo, ... or filter only VMs here!
 
-	// sort droplets by droplet ID to keep output comparable between cycles
-	dinfo_sort := make([]*process_info, 0, len(pinfo))
-	for _, d := range pinfo {
-		dinfo_sort = append(dinfo_sort, d)
+	// sort VMs by VM ID to keep output comparable between cycles
+	vinfo_sort := make([]*process_info, 0, len(pinfo))
+	for _, v := range pinfo {
+		vinfo_sort = append(vinfo_sort, v)
 	}
-	sort.Sort(ByID(dinfo_sort))
+	sort.Sort(ByID(vinfo_sort))
 
-	var rd, wr, rdops, wrops uint64
-	for _, d := range dinfo_sort {
-		if cgroupVersion == 2 {
-			rd, wr, rdops, wrops, err = ReadIOServiceFilev2(basedirCgroupVM, d.dir, blkioServiced)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: reading file for droplet\n")
-				return nil
-			}
-		} else {
-			return nil
-		}
-
-		ProcessData(d, rd, wr, rdops, wrops)
+	for _, v := range vinfo_sort {
+		ProcessData(v)
 	}
 	return nil
 }
@@ -1546,7 +1528,7 @@ func ParseVMs() (error) {
 		return err
 	}
 
-	err = GetProcessData()
+	err = GetVMData()
 	if err != nil {
                 return err
         }
@@ -1558,23 +1540,22 @@ func ParseVMs() (error) {
 	return err
 }
 
+/*
 func ParseServices() (error) {
 	err := GetServiceIDs()
 	if err != nil {
 		return err
 	}
 
-	err = GetServiceData()
-	if err != nil {
-                return err
-        }
-
 	return err
 }
 
 func ParseBPF() (error) {
-	/*
-        var k iodataKey
+	if !optBPFHist {
+		return nil
+	}
+
+	var k iodataKey
         var v iodataVal
 
         keys := make(map[int32]iodataVal)
@@ -1592,9 +1573,9 @@ func ParseBPF() (error) {
                         }
                 }
         }
-	*/
         return nil
 }
+*/
 
 func printHeader() () {
 	fmt.Fprintf(os.Stderr, "Droplet\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
@@ -1878,6 +1859,7 @@ func main() {
 			fmt.Println(string(bgLightGrey))
 		}
 
+		/*
 		err = ParseServices()
 		if err != nil {
 			panic("Error ParseServices:" + err.Error())
@@ -1887,6 +1869,7 @@ func main() {
 		if err != nil {
 			panic("Error ParseBPF:" + err.Error())
 		}
+		*/
 
 		err = GetHVData()
 		if err != nil {
