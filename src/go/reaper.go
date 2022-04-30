@@ -1244,7 +1244,7 @@ func PrintData(o *output) {
 			fmt.Println(string(color))
 		} else {
 			if o.ID == -1 {
-				fmt.Fprintf(os.Stderr, " %s\t\t", o.name)
+				fmt.Fprintf(os.Stderr, " %-20s\t", o.name)
 			} else {
 				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
 			}
@@ -1266,6 +1266,7 @@ func PrintData(o *output) {
 			wdelta, wformat = formatTime(o.wr_max)
 			fmt.Fprintf(os.Stderr, "%4d %s / %4d %s", rdelta, rformat, wdelta, wformat)
 
+			/* debug - disable percs for now
 			fmt.Fprintf(os.Stderr, "\n  percs [%4d/%4d]: ", o.rd_perc, o.wr_perc)
 			fmt.Fprintf(os.Stderr, "\t p50: %d/%d \t p90: %d/%d \t p99: %d/%d",
 				o.rd_p50, o.wr_p50,
@@ -1273,6 +1274,7 @@ func PrintData(o *output) {
 				o.rd_p99, o.wr_p99)
 
 			fmt.Fprintf(os.Stderr, "\t\t%6d", o.bs_avg)
+			*/
 			fmt.Fprintf(os.Stderr, "\n")
 		}
 	}
@@ -1351,7 +1353,7 @@ func GetHVData() (error) {
 
 		ops := total_events
 		if ops > 0 {
-			fmt.Fprintf(os.Stderr, "\t\tLost %d/%d (%d %%)",
+			fmt.Fprintf(os.Stderr, "\t\t\tLost %d/%d (%d %%)",
 						dropped_events, ops, (100 * dropped_events) / ops)
 		}
 		total_events = 0
@@ -1569,6 +1571,25 @@ func ParseKthreads() {
 	}
 }
 
+func ParseProcesses() {
+	// sort processes to keep output comparable between cycles
+	pinfo_sort := make([]*process_info, 0, len(pinfo))
+	for _, p := range pinfo {
+		if p.ptype == TypeProcess {
+			pinfo_sort = append(pinfo_sort, p)
+		}
+	}
+	sort.Sort(ByPID(pinfo_sort))
+
+	if len(pinfo_sort) > 0 {
+		fmt.Fprintf(os.Stderr, "Processes: %d\n", len(pinfo_sort))
+	}
+
+	for _, p := range pinfo_sort {
+		ProcessData(p)
+	}
+}
+
 /*
 func ParseServices() (error) {
 	err := GetServiceIDs()
@@ -1607,7 +1628,7 @@ func ParseBPF() (error) {
 */
 
 func printHeader() () {
-	fmt.Fprintf(os.Stderr, "Droplet\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
+	fmt.Fprintf(os.Stderr, "Process\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
 	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
 }
 
@@ -1827,7 +1848,7 @@ func main() {
 		}
 		defer CSV.Close()
 
-		header := "Timestamp,Droplet-ID,read-bytes,write-bytes,rd-iops,wr-iops,avg-read-lat,avg-write-lat,max-read-lat,max-write-lat,read-perc-nr,wr-perc-nr,p50-read-lat,p90-read-lat,p99-read-lat,p50-write-lat,p90-write-lat,p99-write-lat,avg-blocksize\n"
+		header := "Timestamp,VM-ID,read-bytes,write-bytes,rd-iops,wr-iops,avg-read-lat,avg-write-lat,max-read-lat,max-write-lat,read-perc-nr,wr-perc-nr,p50-read-lat,p90-read-lat,p99-read-lat,p50-write-lat,p90-write-lat,p99-write-lat,avg-blocksize\n"
 		if _, err := CSV.WriteString(header); err != nil {
 			log.Println(err)
 		}
@@ -1883,6 +1904,7 @@ func main() {
 		}
 
 		ParseKthreads()
+		ParseProcesses()
 
 		/*
 		err = ParseServices()
