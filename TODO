@@ -47,6 +47,7 @@ Bugs/TODO's
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
 - rename optBPFHist (after downgrade of log events mode)
 - Call GetDropletIDs only per new detected VM
+- get total/HV number also from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
 
 
 Feats

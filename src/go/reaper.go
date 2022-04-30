@@ -186,15 +186,18 @@ func getKernelVersion() (int, int, int, error) {
 }
 
 func detectProcessType(pid int32, comm string) process_type {
-	// check if pid is a kernel thread: /proc/pid/stat [8] flag: 0x00200000
+	// check if pid is a kernel thread: /proc/pid/stat [8] flag: 0x00200000 -> Bit21
 	kthread, err := ReadStatFile("/proc/", fmt.Sprintf("%d", pid), "/stat")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading /proc/%d/stat", pid)
+		fmt.Fprintf(os.Stderr, "error reading /proc/%d/stat\n", pid)
 	}
 	if kthread == true {
 		fmt.Fprintf(os.Stderr, "%s -> kernel thread\n", comm)
 		return TypeKthread
 	}
+
+	// not detecting all kworker's as threads (why?)...
+	// check if PPID is 2 and if maybe also name (kworker)
 
 	// check if pid is VM: comm starts with qemu and TODO: entry in machine-qemu.../libvirt/cgroup.procs
 	if strings.HasPrefix(comm, "qemu") {
@@ -883,6 +886,10 @@ func splitFileLine(r rune) bool {
         return r == ' ' || r == ':' || r == '='
 }
 
+func splitFileLineRedux(r rune) bool {
+        return r == ' '
+}
+
 // cgroupsv2: io.stat
 // TODO: remove debug code
 func ReadIOServiceFilev2(base, prefix string, suffix string) (uint64, uint64, uint64, uint64, error) {
@@ -1028,7 +1035,7 @@ func ReadStatFile(base, prefix string, suffix string) (bool, error) {
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
-		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLineRedux)
 		if len(fields) < 9 {
 			continue
 		}
@@ -1038,12 +1045,18 @@ func ReadStatFile(base, prefix string, suffix string) (bool, error) {
 			return false, err
 		}
 
-		if flag & 0x00200000 == 0x00200000 {
+		ppid, err := strconv.ParseInt(fields[3], 10, 64)
+		if err != nil {
+			return false, err
+		}
+
+		if (flag & 0x00200000 == 0x00200000) && (ppid == 2) {
 			return true, nil
 		} else {
 			return false, nil
 		}
 	}
+	fmt.Fprintf(os.Stderr, "It's the final ERROR\n")
 	return false, sc.Err()
 }
 
