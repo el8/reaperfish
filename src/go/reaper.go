@@ -692,7 +692,7 @@ func ConfigureCgroupVars() (error) {
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		// format: cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot 0 0
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if fields[0] == "cgroup2" {
 			cgroupVersion = 2
 			fmt.Fprintf(os.Stderr, "Found cgroupv2\n")
@@ -879,7 +879,7 @@ func GetServiceIDs() (error) {
 	return nil
 }
 
-func splitBlkIOStatLine(r rune) bool {
+func splitFileLine(r rune) bool {
         return r == ' ' || r == ':' || r == '='
 }
 
@@ -906,7 +906,7 @@ func ReadIOServiceFilev2(base, prefix string, suffix string) (uint64, uint64, ui
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		// format: major:minor rbytes=amount wbytes=amount rios=amount wios=amount ...
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if len(fields) < 10 {
 			fmt.Fprintf(os.Stderr, "invalid line\n")
 			return 0, 0, 0, 0, fmt.Errorf("invalid line found while parsing %s: %s", path, sc.Text())
@@ -977,7 +977,7 @@ func ReadIOThrottleFile(base, prefix string, suffix string) (uint64, error) {
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		// format: major:minor limit
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if len(fields) < 3 {
 			// TODO XXX handle empty files
 			continue
@@ -1028,7 +1028,7 @@ func ReadStatFile(base, prefix string, suffix string) (bool, error) {
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if len(fields) < 9 {
 			continue
 		}
@@ -1095,7 +1095,7 @@ func ReadDiskstatFile(base, prefix string, suffix string) (uint64, uint64, uint6
 
 	for sc.Scan() {
 		// format: 15 values, 0=reads, 2=sectors-read 4=writes 6=sectors-written
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if len(fields) < 15 {
 			fmt.Fprintf(os.Stderr, "error: Invalid diskstat format\n")
 			return 0, 0, 0, 0, nil
@@ -1135,7 +1135,7 @@ func ReadMounts(base, prefix string, suffix string) (string, error) {
 	var link string
 	for sc.Scan() {
 		// format: /dev/mapper/vg0-libvirt_images
-		fields := strings.FieldsFunc(sc.Text(), splitBlkIOStatLine)
+		fields := strings.FieldsFunc(sc.Text(), splitFileLine)
 		if len(fields) < 2 {
 			fmt.Fprintf(os.Stderr, "error: Invalid mount format\n")
 			return "", nil
