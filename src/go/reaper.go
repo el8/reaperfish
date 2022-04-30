@@ -1368,12 +1368,18 @@ func GetHVData() (error) {
 	return nil
 }
 
-// implement sort interface for process_info
+// implement sort interfaces for process_info
 type ByID []*process_info
 
 func (p ByID) Len() int           { return len(p) }
 func (p ByID) Less(i, j int) bool { return p[i].ID < p[j].ID }
 func (p ByID) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+type ByPID []*process_info
+
+func (p ByPID) Len() int           { return len(p) }
+func (p ByPID) Less(i, j int) bool { return p[i].pid < p[j].pid }
+func (p ByPID) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func CalcPercentile(percent int, perc []uint64) uint64 {
 	len := len(perc)
@@ -1510,14 +1516,18 @@ func ProcessData(d *process_info) () {
 
 // TODO: output should be a local to parent and passed to print
 func GetVMData() error {
-	// TODO: maybe split really into vinfo, pinfo, ... or filter only VMs here!
-
 	// sort VMs by VM ID to keep output comparable between cycles
 	vinfo_sort := make([]*process_info, 0, len(pinfo))
 	for _, v := range pinfo {
-		vinfo_sort = append(vinfo_sort, v)
+		if v.ptype == TypeVM {
+			vinfo_sort = append(vinfo_sort, v)
+		}
 	}
 	sort.Sort(ByID(vinfo_sort))
+
+	if len(vinfo_sort) > 0 {
+		fmt.Fprintf(os.Stderr, "VMs:\n")
+	}
 
 	for _, v := range vinfo_sort {
 		ProcessData(v)
@@ -1540,11 +1550,26 @@ func ParseVMs() (error) {
                 return err
         }
 
-	if optBPFHist {
-		LifeCheck()
+	return err
+}
+
+func ParseKthreads() {
+	// sort kthreads to keep output comparable between cycles
+	kinfo_sort := make([]*process_info, 0, len(pinfo))
+	for _, k := range pinfo {
+		if k.ptype == TypeKthread {
+			kinfo_sort = append(kinfo_sort, k)
+		}
+	}
+	sort.Sort(ByPID(kinfo_sort))
+
+	if len(kinfo_sort) > 0 {
+		fmt.Fprintf(os.Stderr, "Kernel threads:\n")
 	}
 
-	return err
+	for _, k := range kinfo_sort {
+		ProcessData(k)
+	}
 }
 
 /*
@@ -1782,12 +1807,6 @@ func main() {
 		panic("Error DetectDevice:" + err.Error())
 	}
 
-	// initial run to learn qemu PIDs and initialize values
-	err = ParseVMs()
-	if err != nil {
-		panic("Error ParseVMs:" + err.Error())
-	}
-
 	// TODO: unconditionally force bio mode as req mode isn't supported for now
 	optTraceReq = false
 	optTraceBio = true
@@ -1866,6 +1885,8 @@ func main() {
 			fmt.Println(string(bgLightGrey))
 		}
 
+		ParseKthreads()
+
 		/*
 		err = ParseServices()
 		if err != nil {
@@ -1886,6 +1907,10 @@ func main() {
 		if !optMonitor {
 			CheckLatencyTarget()
 			PrintIOLimits()
+		}
+
+		if optBPFHist {
+			LifeCheck()
 		}
 
 		cycle++
