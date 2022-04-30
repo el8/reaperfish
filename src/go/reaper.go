@@ -1415,10 +1415,6 @@ func ProcessData(d *process_info) () {
 		var lat_rd_avg uint64 = 0
 		var lat_wr_avg uint64 = 0
 
-		if rd < d.last.read_bytes || wr < d.last.write_bytes {
-			fmt.Fprintf(os.Stderr, "error: implausible value for droplet blkio\n")
-		}
-
 		if d.ptype == TypeVM {
 			o.ID = d.ID
 		} else {
@@ -1426,15 +1422,16 @@ func ProcessData(d *process_info) () {
 		}
 		o.pid = d.pid
 		o.timestamp = d.timestamp
-		o.name = d.dir
+		//o.name = d.dir
+		o.name = d.comm
 
 		// read - write bandwith during cycle
-		o.rd_bytes = uint64(float64(rd - d.last.read_bytes) / time_diff.Seconds())
-		o.wr_bytes = uint64(float64(wr - d.last.write_bytes) / time_diff.Seconds())
+		o.rd_bytes = uint64(float64(rd) / time_diff.Seconds())
+		o.wr_bytes = uint64(float64(wr) / time_diff.Seconds())
 
 		// read-write IOPS during cycle
-		o.rd_ops = uint64(float64(rdops - d.last.read_ops) / time_diff.Seconds())
-		o.wr_ops = uint64(float64(wrops - d.last.write_ops) / time_diff.Seconds())
+		o.rd_ops = uint64(float64(rdops) / time_diff.Seconds())
+		o.wr_ops = uint64(float64(wrops) / time_diff.Seconds())
 
 		// read - write average latencies during cycle
 		if d.lat.read_nr != 0 {
@@ -1564,7 +1561,7 @@ func ParseKthreads() {
 	sort.Sort(ByPID(kinfo_sort))
 
 	if len(kinfo_sort) > 0 {
-		fmt.Fprintf(os.Stderr, "Kernel threads:\n")
+		fmt.Fprintf(os.Stderr, "Kernel threads: %d\n", len(kinfo_sort))
 	}
 
 	for _, k := range kinfo_sort {
