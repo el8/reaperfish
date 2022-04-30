@@ -1370,7 +1370,7 @@ func GetHVData() (error) {
 			   fmt.Fprintf(os.Stderr, "error: implausible blkio value for read or write\n")
 		}
 
-		fmt.Fprintf(os.Stderr, "Total\t\t\t")
+		fmt.Fprintf(os.Stderr, "%-28s", "Total")
 
 		rbytes := uint64(float64(rd - HV_global.last.read_bytes) / time_diff.Seconds())
 		rdelta, rformat := formatDelta(rbytes)
@@ -1385,7 +1385,7 @@ func GetHVData() (error) {
 
 		ops := total_events
 		if ops > 0 {
-			fmt.Fprintf(os.Stderr, "\t\t\tLost %d/%d (%d %%)",
+			fmt.Fprintf(os.Stderr, "\t\tLost %d/%d (%d %%)",
 						dropped_events, ops, (100 * dropped_events) / ops)
 		}
 		total_events = 0
@@ -1660,7 +1660,7 @@ func ParseBPF() (error) {
 */
 
 func printHeader() () {
-	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
+	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t    Δ-IOPS R/W\t\t   ⌀-lat R/W\t\t\t    max-lat R/W\t\n")
 	//fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
 }
 
