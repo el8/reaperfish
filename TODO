@@ -46,6 +46,10 @@ Bugs/TODO's
 - rename optBPFHist (after downgrade of log events mode)
 - Call GetDropletIDs only per new detected VM
 - get total/HV number also from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
+- output name spacing does not work, who can %-20s not be 20 spaces???
+  -> get process name from /proc/pid/stat instead of BPF!
+  -> firefox instead of glean.dispatche ...
+- run log and see if we catch all relevant IO
 
 
 Feats

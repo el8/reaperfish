@@ -408,6 +408,7 @@ func run_bpf_log() {
 				}
 			}
 
+			// account for global stats
 			if event.RWFlag == REQ_OP_READ {
 				lat.read_total += event.Delta
 				lat.read_nr++
@@ -428,13 +429,12 @@ func run_bpf_log() {
 				if optDebug {
 					fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
 				}
-				str := string(event.Comm[:])
 
 				var p *process_info
 				p = new(process_info)
 				p.pid = int(event.Pid)
-				p.ptype = detectProcessType(event.Pid, str)
-				p.comm = str
+				p.ptype = detectProcessType(event.Pid, comm)
+				p.comm = comm
 
 				// TODO: if VM detect ID
 				//d.ID = id
@@ -1276,14 +1276,9 @@ func PrintData(o *output) {
 			fmt.Println(string(color))
 		} else {
 			if o.ID == -1 {
-				fmt.Fprintf(os.Stderr, " %-20s", o.name)
-				if len(o.name) < 8 {
-					fmt.Fprintf(os.Stderr,"\t\t\t")
-				} else {
-					fmt.Fprintf(os.Stderr,"\t")
-				}
+				fmt.Fprintf(os.Stderr, "  %5d %-20s", o.pid, o.name)
 			} else {
-				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
+				fmt.Fprintf(os.Stderr, " #%4d (%5d)                ", o.ID, o.pid)
 			}
 
 			rdelta, rformat := formatDelta(o.rd_bytes)
@@ -1562,7 +1557,7 @@ func GetVMData() error {
 	sort.Sort(ByID(vinfo_sort))
 
 	if len(vinfo_sort) > 0 {
-		fmt.Fprintf(os.Stderr, "VMs:\n")
+		fmt.Fprintf(os.Stderr, "[VMs: %d]\n", len(vinfo_sort))
 	}
 
 	for _, v := range vinfo_sort {
@@ -1600,7 +1595,7 @@ func ParseKthreads() {
 	sort.Sort(ByPID(kinfo_sort))
 
 	if len(kinfo_sort) > 0 {
-		fmt.Fprintf(os.Stderr, "Kernel threads: %d\n", len(kinfo_sort))
+		fmt.Fprintf(os.Stderr, "[Kernel threads: %d]\n", len(kinfo_sort))
 	}
 
 	for _, k := range kinfo_sort {
@@ -1619,7 +1614,7 @@ func ParseProcesses() {
 	sort.Sort(ByPID(pinfo_sort))
 
 	if len(pinfo_sort) > 0 {
-		fmt.Fprintf(os.Stderr, "Processes: %d\n", len(pinfo_sort))
+		fmt.Fprintf(os.Stderr, "[Processes: %d]\n", len(pinfo_sort))
 	}
 
 	for _, p := range pinfo_sort {
@@ -1665,8 +1660,8 @@ func ParseBPF() (error) {
 */
 
 func printHeader() () {
-	fmt.Fprintf(os.Stderr, "Process\t\t\t     Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
-	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
+	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t     Δ-IOPS R/W\t\t     ⌀-lat R/W\t\t\t     max-lat R/W\t\n")
+	//fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
 }
 
 //
