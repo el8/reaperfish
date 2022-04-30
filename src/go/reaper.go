@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"C"
 	"encoding/binary"
+	"errors"
 	"io/ioutil"
 	"flag"
 	"fmt"
@@ -442,9 +443,8 @@ func run_bpf_log() {
 				// TODO: not sure if I need this
 				//p.dir = dirCgroup.Name()
 
-				p.scanned = true
-
 				if p.ptype != TypeDead {
+					p.scanned = true
 					pinfo[p.pid] = p
 
 					if optDebug {
@@ -741,7 +741,7 @@ func ConfigureCgroupVars() (error) {
 	return nil
 }
 
-func LifeCheck() {
+func CheckAlive() {
 	// mark all existing processes to detect dead ones
 	for _, p := range pinfo {
 		p.scanned = false
@@ -750,16 +750,32 @@ func LifeCheck() {
 	// find dead processes
 	for _, p := range pinfo {
 		if p.scanned == false {
-			// remove it
-			var k hist_key
-
-			k.Pid = uint32(p.pid)
-			// Deleting a process directly from the BPF map should be race-safe
-			// as the process is gone and no new events will therefore be added from BPF side
-			if err := hists.Delete(&k); err != nil {
-				fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", p.pid, err)
+			// check if the process is still alive
+			fname := fmt.Sprintf("/proc/%d", p.pid)
+			_, err := os.Stat(fname)
+			if errors.Is(err, os.ErrNotExist) {
+				p.ptype = TypeDead
 			}
-			delete(pinfo, p.pid)
+
+			if optBPFHist {
+				var k hist_key
+
+				k.Pid = uint32(p.pid)
+				// Deleting a process directly from the BPF map should be race-safe
+				// as the process is gone and no new events will therefore be added from BPF side
+				if err := hists.Delete(&k); err != nil {
+					fmt.Fprintf(os.Stderr, "Can't delete droplet %d map entry:", p.pid, err)
+				}
+			}
+
+			if p.ptype == TypeDead {
+				if optDebug {
+					fmt.Fprintf(os.Stderr, "Removing process %d %s\n", p.pid, p.comm)
+				}
+				delete(pinfo, p.pid)
+			} else {
+				p.scanned = true
+			}
 		}
 	}
 }
@@ -1960,9 +1976,7 @@ func main() {
 			PrintIOLimits()
 		}
 
-		if optBPFHist {
-			LifeCheck()
-		}
+		CheckAlive()
 
 		cycle++
 		if exiting {
