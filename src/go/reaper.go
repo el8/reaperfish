@@ -443,16 +443,16 @@ func run_bpf_log() {
 
 			// account event
 			if event.RWFlag == REQ_OP_READ {
-				p.last.read_ops++
-				p.last.read_bytes += event.Len
+				p.act.read_ops++
+				p.act.read_bytes += event.Len
 				p.lat.read_total += event.Delta
 				if event.Delta > p.lat.read_max {
 					p.lat.read_max = event.Delta
 				}
 				p.lat.read_nr++
 			} else if event.RWFlag == REQ_OP_WRITE {
-				p.last.write_ops++
-				p.last.write_bytes += event.Len
+				p.act.write_ops++
+				p.act.write_bytes += event.Len
 				p.lat.write_total += event.Delta
 				if event.Delta > p.lat.write_max {
 					p.lat.write_max = event.Delta
@@ -613,6 +613,7 @@ type process_info struct {
 	comm			string
 	dir			string
 	last			traffic
+	act			traffic
 	lat			latency
 	usable			bool
 	scanned			bool
@@ -1391,10 +1392,16 @@ func CalcPercentile(percent int, perc []uint64) uint64 {
 func ProcessData(d *process_info) () {
 	var o output
 	// TODO: cleanup
-	rd := d.last.read_bytes
-	wr := d.last.write_bytes
-	rdops := d.last.read_ops
-	wrops := d.last.write_ops
+	rd := d.act.read_bytes
+	wr := d.act.write_bytes
+	rdops := d.act.read_ops
+	wrops := d.act.write_ops
+
+	// reset traffic
+	d.act.read_bytes = 0
+	d.act.write_bytes = 0
+	d.act.read_ops = 0
+	d.act.write_ops = 0
 
 	if (d.usable == true) {
 		time_diff := time.Now().Sub(d.timestamp)
