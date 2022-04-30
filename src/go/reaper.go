@@ -189,10 +189,16 @@ func detectProcessType(pid int32, comm string) process_type {
 	// check if pid is a kernel thread: /proc/pid/stat [8] flag: 0x00200000 -> Bit21
 	kthread, err := ReadStatFile("/proc/", fmt.Sprintf("%d", pid), "/stat")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading /proc/%d/stat\n", pid)
+		if optDebug {
+			fmt.Fprintf(os.Stderr, "error reading /proc/%d/stat\n", pid)
+		}
+		// process might already be dead again
+		return TypeDead
 	}
 	if kthread == true {
-		fmt.Fprintf(os.Stderr, "%s -> kernel thread\n", comm)
+		if optDebug {
+			fmt.Fprintf(os.Stderr, "%s -> kernel thread\n", comm)
+		}
 		return TypeKthread
 	}
 
@@ -201,14 +207,18 @@ func detectProcessType(pid int32, comm string) process_type {
 
 	// check if pid is VM: comm starts with qemu and TODO: entry in machine-qemu.../libvirt/cgroup.procs
 	if strings.HasPrefix(comm, "qemu") {
-		fmt.Fprintf(os.Stderr, "%s -> VM\n", comm)
+		if optDebug {
+			fmt.Fprintf(os.Stderr, "%s -> VM\n", comm)
+		}
 		return TypeVM
 	}
 
 	// optional: detect service
 
 	// pid is a "normal" process :)
-	fmt.Fprintf(os.Stderr, "%s -> process\n", comm)
+	if optDebug {
+		fmt.Fprintf(os.Stderr, "%s -> process\n", comm)
+	}
 	return TypeProcess
 }
 
@@ -415,7 +425,9 @@ func run_bpf_log() {
 			// check if we know the PID and create if neccesary
 			p, known := pinfo[int(event.Pid)]
 			if !known {
-				fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
+				if optDebug {
+					fmt.Fprintf(os.Stderr, "[event] new pid %d  comm: %s\n", event.Pid, event.Comm)
+				}
 				str := string(event.Comm[:])
 
 				var p *process_info
@@ -432,16 +444,22 @@ func run_bpf_log() {
 
 				p.scanned = true
 
-				pinfo[p.pid] = p
-				if optDebug {
-					fmt.Fprintf(os.Stderr, "debug: added pid: %d  info @ %p\n", p.pid, p)
+				if p.ptype != TypeDead {
+					pinfo[p.pid] = p
+
+					if optDebug {
+						fmt.Fprintf(os.Stderr, "debug: added pid: %d  info @ %p\n", p.pid, p)
+					}
 				}
 			}
 
 			// re-fetch p if it was re-created (why?)
 			p, known = pinfo[int(event.Pid)]
 			if !known {
-				fmt.Fprintf(os.Stderr, "error: missing pinfo!\n")
+				if optDebug {
+					fmt.Fprintf(os.Stderr, "error: missing pinfo!\n")
+				}
+				continue
 			}
 
 			// account event
@@ -606,6 +624,7 @@ const (
 	TypeVM
 	TypeHVGlobal	// XXX maybe kill
 	TypeService	// XXX maybe kill
+	TypeDead	// dying or dead process
 )
 
 // process description, this can be a droplet, HV service or other process (e.g. kworker threads)
@@ -1257,7 +1276,12 @@ func PrintData(o *output) {
 			fmt.Println(string(color))
 		} else {
 			if o.ID == -1 {
-				fmt.Fprintf(os.Stderr, " %-20s\t", o.name)
+				fmt.Fprintf(os.Stderr, " %-20s", o.name)
+				if len(o.name) < 8 {
+					fmt.Fprintf(os.Stderr,"\t\t\t")
+				} else {
+					fmt.Fprintf(os.Stderr,"\t")
+				}
 			} else {
 				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
 			}
@@ -1279,7 +1303,7 @@ func PrintData(o *output) {
 			wdelta, wformat = formatTime(o.wr_max)
 			fmt.Fprintf(os.Stderr, "%4d %s / %4d %s", rdelta, rformat, wdelta, wformat)
 
-			/* debug - disable percs for now
+			/* debug - disable percs for now for readability
 			fmt.Fprintf(os.Stderr, "\n  percs [%4d/%4d]: ", o.rd_perc, o.wr_perc)
 			fmt.Fprintf(os.Stderr, "\t p50: %d/%d \t p90: %d/%d \t p99: %d/%d",
 				o.rd_p50, o.wr_p50,

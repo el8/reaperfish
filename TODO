@@ -11,7 +11,6 @@ Bugs/TODO's
   maybe add to trace_req_start()
 - try BPF code with -Wall and remove warnings
 - Fix golang printf mess with my own wrapper
-- droplet -> VM
 - make BPF lookup dir use absolute path and look for it in same dir as golang executable
 - color mode looks bad in konsole with non-default colors...
 - CTRL-C is broken in lastes reaperfish-cilium branch
@@ -19,7 +18,6 @@ Bugs/TODO's
   -> unify GetDropletData mit GetServiceData
 - take IOPS from BPF rather than from cgroups! need BPF to export these
   -> do next to remove error: reading file for HV (to make service data work)
-- Adopt GetDropletIDs to non DO-world
 - rename dir -> name
 - warum sehe ich reads nicht?
   sudo dd if=/dev/sda of=/dev/zero
