@@ -4,9 +4,6 @@ Reaperfish TODO's
 Bugs/TODO's
 -----------
 - merge with reaperfish-cilium branch (pick histogram stuff etc.)
-- kworker threads / pagecache IO tracking (similar to existing HV services, required to see HV services)
-  -> should be "fixed" by outer bio tracing
-  -> no, still seeing a lot of unknown IO on 253:1 dm device...
 - BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
   maybe add to trace_req_start()
 - try BPF code with -Wall and remove warnings
@@ -16,9 +13,6 @@ Bugs/TODO's
 - CTRL-C is broken in lastes reaperfish-cilium branch
 - histogram mode needs a completely new display routine
   -> unify GetDropletData mit GetServiceData
-- take IOPS from BPF rather than from cgroups! need BPF to export these
-  -> do next to remove error: reading file for HV (to make service data work)
-- rename dir -> name
 - warum sehe ich reads nicht?
   sudo dd if=/dev/sda of=/dev/zero
   ./reaper -major 8 -minor 0 -log-events
@@ -45,23 +39,21 @@ Bugs/TODO's
 - avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
 - rename optBPFHist (after downgrade of log events mode)
 - Call GetDropletIDs only per new detected VM
-- get total/HV number also from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
-- output name spacing does not work, who can %-20s not be 20 spaces???
-  -> get process name from /proc/pid/stat instead of BPF!
-  -> firefox instead of glean.dispatche ...
+- get total/HV number als from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
+- improve process names, /proc/pid/stat instead of BPF shows firefox instead of glean.dispatche
 - run log and see if we catch all relevant IO
 
 
-Feats
------
+Planned features
+----------------
+
 - ncurses / notcurses GUI
 - different sort's like most BW
 - histogram/percentiles and log mode
 - document all build and run-time dependencies
-- vm-mode and process-mode (default), command line switch
-  vm: root@sake:/sys/fs/cgroup/machine.slice/machine-qemu\x2d1\x2dfedora.scope/libvirt/cgroup.procs -> PID of parent process
-- topology detection & command line switches, RAID detection logic
-- runnable on laptop and HVs!
+- multiple devices support
+- tracing requests
+- tracing bio merges
 - minimize golang dependecies or re-write golang in C ?
 - fancy graphs
 

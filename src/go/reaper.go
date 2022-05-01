@@ -1294,7 +1294,7 @@ func PrintData(o *output) {
 			if o.ID == -1 {
 				fmt.Fprintf(os.Stderr, "  %5d %-20s", o.pid, o.name)
 			} else {
-				fmt.Fprintf(os.Stderr, " #%4d (%5d)                ", o.ID, o.pid)
+				fmt.Fprintf(os.Stderr, " #%-5d %-20d", o.ID, o.pid)
 			}
 
 			rdelta, rformat := formatDelta(o.rd_bytes)
@@ -1314,16 +1314,14 @@ func PrintData(o *output) {
 			wdelta, wformat = formatTime(o.wr_max)
 			fmt.Fprintf(os.Stderr, "%4d %s / %4d %s", rdelta, rformat, wdelta, wformat)
 
-			/* debug - disable percs for now for readability
-			fmt.Fprintf(os.Stderr, "\n  percs [%4d/%4d]: ", o.rd_perc, o.wr_perc)
+			fmt.Fprintf(os.Stderr, "\n\tpercs [%4d/%4d]: ", o.rd_perc, o.wr_perc)
 			fmt.Fprintf(os.Stderr, "\t p50: %d/%d \t p90: %d/%d \t p99: %d/%d",
 				o.rd_p50, o.wr_p50,
 				o.rd_p90, o.wr_p90,
 				o.rd_p99, o.wr_p99)
 
 			fmt.Fprintf(os.Stderr, "\t\t%6d", o.bs_avg)
-			*/
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "\n\n")
 		}
 	}
 	if optCSV {
@@ -1401,7 +1399,7 @@ func GetHVData() (error) {
 
 		ops := total_events
 		if ops > 0 {
-			fmt.Fprintf(os.Stderr, "\t\tLost %d/%d (%d %%)",
+			fmt.Fprintf(os.Stderr, "\t\t\t\tLost %d/%d (%d %%)",
 						dropped_events, ops, (100 * dropped_events) / ops)
 		}
 		total_events = 0
@@ -1676,8 +1674,8 @@ func ParseBPF() (error) {
 */
 
 func printHeader() () {
-	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t    Δ-IOPS R/W\t\t   ⌀-lat R/W\t\t\t    max-lat R/W\t\n")
-	//fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t    p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
+	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t    Δ-IOPS R/W\t\t   ⌀-lat R/W\t\t\t   max-lat R/W\t\n")
+	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t      p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
 }
 
 //
