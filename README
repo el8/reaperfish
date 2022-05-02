@@ -9,7 +9,7 @@ o Minimum required/tested versions:
 
 o Ubuntu impish (21.10):
 
-  sudo apt install clang llvm libbpf-dev libbpf0 dwarves
+  sudo apt install clang llvm libbpf-dev libbpf0 dwarves golang-go
   sudo apt install linux-tools-common (for bpftool)
 
   mkdir build
