@@ -1323,7 +1323,7 @@ func PrintData(o *output) {
 			wdelta, wformat = formatTime(o.wr_p99)
 			fmt.Fprintf(os.Stderr, "\t p99: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
 
-			fmt.Fprintf(os.Stderr, "\t\t%6d", o.bs_avg)
+			fmt.Fprintf(os.Stderr, "\t\t\xe2\x8c\x80-bs: %6d", o.bs_avg)
 			fmt.Fprintf(os.Stderr, "\n\n")
 		}
 	}
@@ -1677,7 +1677,7 @@ func ParseBPF() (error) {
 
 func printHeader() () {
 	fmt.Fprintf(os.Stderr, "Process\t\t\t      Δ-BW R/W\t\t\t    Δ-IOPS R/W\t\t   ⌀-lat R/W\t\t\t   max-lat R/W\t\n")
-	fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t      p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
+	//fmt.Fprintf(os.Stderr, "Perc.# R/W\t\t      p50 R/W\t\t p90 R/W\t\t  p99 R/W\t\t  ⌀-Blocksize\n")
 }
 
 //
