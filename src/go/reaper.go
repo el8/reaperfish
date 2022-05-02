@@ -497,7 +497,6 @@ func run_bpf_log() {
 	//<-stopper
 	exiting = true
 
-	// TODO: more cleanup?
 	//CleanupBPF()
 	fmt.Fprintf(os.Stderr, "Stopped BPF\n")
 }
@@ -1197,8 +1196,7 @@ func ReadMounts(base, prefix string, suffix string) (string, error) {
 	return link, sc.Err()
 }
 
-// TODO: rename formatBandwith or so
-func formatDelta(delta uint64) (uint64, string) {
+func formatBandwidth(delta uint64) (uint64, string) {
 	var format string
 
 	if delta > 1000000 {
@@ -1257,8 +1255,8 @@ func PrintData(o *output) {
 				fmt.Fprintf(os.Stderr, " #%d (%d)\t\t", o.ID, o.pid)
 			}
 
-			rdelta, rformat := formatDelta(o.rd_bytes)
-			wdelta, wformat := formatDelta(o.wr_bytes)
+			rdelta, rformat := formatBandwidth(o.rd_bytes)
+			wdelta, wformat := formatBandwidth(o.wr_bytes)
 
 			// TODO: reduce spacing for 0 values
 			fmt.Fprintf(os.Stderr, "%3d %s / ", rdelta, rformat)
@@ -1297,8 +1295,8 @@ func PrintData(o *output) {
 				fmt.Fprintf(os.Stderr, " #%-5d %-20d", o.ID, o.pid)
 			}
 
-			rdelta, rformat := formatDelta(o.rd_bytes)
-			wdelta, wformat := formatDelta(o.wr_bytes)
+			rdelta, rformat := formatBandwidth(o.rd_bytes)
+			wdelta, wformat := formatBandwidth(o.wr_bytes)
 
 			// TODO: reduce spacing for 0 values
 			fmt.Fprintf(os.Stderr, "%3d %s / ", rdelta, rformat)
@@ -1387,10 +1385,10 @@ func GetHVData() (error) {
 		fmt.Fprintf(os.Stderr, "%-28s", "Total")
 
 		rbytes := uint64(float64(rd - HV_global.last.read_bytes) / time_diff.Seconds())
-		rdelta, rformat := formatDelta(rbytes)
+		rdelta, rformat := formatBandwidth(rbytes)
 
 		wbytes := uint64(float64(wr - HV_global.last.write_bytes) / time_diff.Seconds())
-		wdelta, wformat := formatDelta(wbytes)
+		wdelta, wformat := formatBandwidth(wbytes)
 
 		fmt.Fprintf(os.Stderr, "%3d %s / %3d %s\t\t", rdelta, rformat, wdelta, wformat)
 		fmt.Fprintf(os.Stderr, "%5d / %5d",
