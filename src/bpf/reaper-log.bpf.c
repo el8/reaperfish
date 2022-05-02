@@ -128,9 +128,8 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 
 	data.sector = BPF_CORE_READ(bio, bi_iter.bi_sector);
 	// ignore if sector is 0
-	if (!data.sector) {
+	if (!data.sector)
 		goto cleanup;
-	}
 
 	struct block_device *bdev;
 	struct gendisk *disk;
@@ -140,11 +139,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	bpf_probe_read_kernel_str(&data.disk_name, sizeof(data.disk_name), disk->disk_name);
 	data.major = BPF_CORE_READ(disk, major);
 	data.minor = BPF_CORE_READ(disk, first_minor);
-
-	// drop everything that is not lvm/dm. Should not happen as these will fail on tsp already.
-	//if (data.major != 253) {
-	//	goto cleanup; // might be redundant with !tsp check above
-	//}
 
 	delta = now - *tsp;
 	delta /= 1000;
