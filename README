@@ -1,0 +1,24 @@
+Install instructions
+---------------------
+
+o Minimum required/tested versions:
+
+  Linux kernel: 5.13
+  clang: 13
+
+
+o Ubuntu impish (21.10):
+
+  sudo apt install clang llvm libbpf-dev libbpf0 dwarves
+  sudo apt install linux-tools-common (for bpftool)
+
+  mkdir build
+  make
+
+
+o Optional Docker build instructions:
+
+  sudo apt install docker.io
+  sudo adduser myuser docker
+
+  TODO: add Dockerfile with upstream libbpf git

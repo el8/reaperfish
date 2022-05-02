@@ -1,0 +1,77 @@
+Reaperfish TODO's 
+~~~~~~~~~~~~~~~~~
+
+Bugs/TODO's
+-----------
+- merge with reaperfish-cilium branch (pick histogram stuff etc.)
+- BPF might miss some IOs coming from merge requests, see biosnoop.bpf.c: BPF_KPROBE(blk_account_io_merge_bio
+  maybe add to trace_req_start()
+- try BPF code with -Wall and remove warnings
+- Fix golang printf mess with my own wrapper
+- make BPF lookup dir use absolute path and look for it in same dir as golang executable
+- color mode looks bad in konsole with non-default colors...
+- CTRL-C is broken in lastes reaperfish-cilium branch
+- histogram mode needs a completely new display routine
+  -> unify GetDropletData mit GetServiceData
+- warum sehe ich reads nicht?
+  sudo dd if=/dev/sda of=/dev/zero
+  ./reaper -major 8 -minor 0 -log-events
+  -> argh, missing complete event for bio... WTF
+              dd-11188   [002] .....  7106.277703: block_bio_queue: 8,0 RA 126004424 + 256 [dd]
+              dd-11188   [002] .....  7106.277704: block_getrq: 8,0 RA 126004424 + 256 [dd]
+              dd-11188   [002] .....  7106.277704: block_plug: [dd]
+              dd-11188   [002] .....  7106.277704: block_unplug: [dd] 1
+              dd-11188   [002] ...1.  7106.277704: block_rq_insert: 8,0 RA 131072 () 126004424 + 256 [dd]
+              dd-11188   [002] ...1.  7106.277704: block_rq_issue: 8,0 RA 131072 () 126004424 + 256 [dd]
+          <idle>-0       [002] ..s1.  7106.278076: block_rq_complete: 8,0 RA () 126004168 + 256 [0]
+              dd-11188   [002] .....  7106.278171: block_bio_queue: 8,0 RA 126004680 + 256 [dd]
+              dd-11188   [002] .....  7106.278172: block_getrq: 8,0 RA 126004680 + 256 [dd]
+              dd-11188   [002] .....  7106.278172: block_plug: [dd]
+              dd-11188   [002] .....  7106.278172: block_unplug: [dd] 1
+              dd-11188   [002] ...1.  7106.278172: block_rq_insert: 8,0 RA 131072 () 126004680 + 256 [dd]
+              dd-11188   [002] ...1.  7106.278172: block_rq_issue: 8,0 RA 131072 () 126004680 + 256 [dd]
+          <idle>-0       [002] ..s1.  7106.278547: block_rq_complete: 8,0 RA () 126004424 + 256 [0]
+- multi-kernel support:
+  -> re-compile BPF on load, requires full build tools on target, so need a way to avoid this!
+  -> merken, fuer welchen Kern BPF object compiliert wurde!
+- cilium asm builtin BPF code verstehen, vielleicht ist das einfacher zu benutzen??? (und hat neue bugs...)
+  -> koennte TP progs von golang aus fuer verschiedene TP sigs generieren!
+- avoid BPF Makefile re-compile every time, .c timestamp geht nicht?
+- rename optBPFHist (after downgrade of log events mode)
+- Call GetDropletIDs only per new detected VM
+- get total/HV number als from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
+- improve process names, /proc/pid/stat instead of BPF shows firefox instead of glean.dispatche
+- run log and see if we catch all relevant IO
+
+
+Planned features
+----------------
+
+- ncurses / notcurses GUI
+- different sort's like most BW
+- histogram/percentiles and log mode
+- document all build and run-time dependencies
+- multiple devices support
+- tracing requests
+- tracing bio merges
+- minimize golang dependecies or re-write golang in C ?
+- fancy graphs
+- switch to blk iocost for automatic throttling
+
+
+BPF
+---
+- decide on minimal kernel version to support, 5.10+? focal?
+- bi_disk is replaced by struct block_device *bi_bdev 309dca309fc39a9e3c31b916393b74bd174fd74e after 5.9
+- block_bio_complete: error argument got removed, need to deal with both variants for 5.4
+  commit d24de76af836260a99ca2ba281a937bd5bc55591
+  Folgt auf: v5.7, Vorgänger von: v5.8-rc1
+  block: remove the error argument to the block_bio_complete tracepoint
+
+
+Long-term
+---------
+- QEMU tracing, attach bpf (like systemtap / uprobes) to qemu?
+- Testing/Verification
+  Testsuite to verify measured values against fio probe
+  (more) plausibility checks at runtime (some are already in place)
