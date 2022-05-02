@@ -1318,12 +1318,13 @@ func PrintData(o *output) {
 			fmt.Fprintf(os.Stderr, "\t p50: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
 			rdelta, rformat = formatTime(o.rd_p90)
 			wdelta, wformat = formatTime(o.wr_p90)
-			fmt.Fprintf(os.Stderr, "\t p90: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
+			fmt.Fprintf(os.Stderr, "\t\t p90: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
 			rdelta, rformat = formatTime(o.rd_p99)
 			wdelta, wformat = formatTime(o.wr_p99)
 			fmt.Fprintf(os.Stderr, "\t p99: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
 
-			fmt.Fprintf(os.Stderr, "\t\t\xe2\x8c\x80-bs: %6d", o.bs_avg)
+			bs, bfmt := formatBandwidth(o.bs_avg)
+			fmt.Fprintf(os.Stderr, "\t\t\xe2\x8c\x80-bs: %d %s", bs, bfmt)
 			fmt.Fprintf(os.Stderr, "\n\n")
 		}
 	}
@@ -1335,7 +1336,7 @@ func PrintData(o *output) {
 		}
 		defer CSV.Close()
 
-		s := fmt.Sprintf("\n%s,%d,", o.timestamp.Format("2006-01-02 15:04:05"), o.ID)
+		s := fmt.Sprintf("\n%s,%d,%s,", o.timestamp.Format("2006-01-02 15:04:05"), o.ID, o.name)
 		CSV.WriteString(s)
 
 		s = fmt.Sprintf("%d,%d,", o.rd_bytes, o.wr_bytes)
@@ -1901,7 +1902,7 @@ func main() {
 		}
 		defer CSV.Close()
 
-		header := "Timestamp,VM-ID,read-bytes,write-bytes,rd-iops,wr-iops,avg-read-lat,avg-write-lat,max-read-lat,max-write-lat,read-perc-nr,wr-perc-nr,p50-read-lat,p90-read-lat,p99-read-lat,p50-write-lat,p90-write-lat,p99-write-lat,avg-blocksize\n"
+		header := "Timestamp,VM-ID,name,read-bytes,write-bytes,rd-iops,wr-iops,avg-read-lat,avg-write-lat,max-read-lat,max-write-lat,read-perc-nr,wr-perc-nr,p50-read-lat,p90-read-lat,p99-read-lat,p50-write-lat,p90-write-lat,p99-write-lat,avg-blocksize\n"
 		if _, err := CSV.WriteString(header); err != nil {
 			log.Println(err)
 		}
@@ -1926,9 +1927,10 @@ func main() {
 	if manual_lat_write_avg != 0 {
 		target_lat_write_avg = uint64(manual_lat_write_avg)
 	}
-	if manual_lat_read_avg != 0 || manual_lat_write_avg != 0 {
-		fmt.Fprintf(os.Stderr, "manual latency targets applied: read: %d µs   write: %d µs\n", target_lat_read_avg, target_lat_write_avg)
-	}
+	// not enforced currently so don't print this
+	//if manual_lat_read_avg != 0 || manual_lat_write_avg != 0 {
+	//	fmt.Fprintf(os.Stderr, "manual latency targets applied: read: %d µs   write: %d µs\n", target_lat_read_avg, target_lat_write_avg)
+	//}
 
 	HV_global.ptype = TypeHVGlobal
 
