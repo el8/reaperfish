@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2022 Jan Glauber
+// Copyright (c) 2022 Jan Glauber @ Digitalocean.com
 
 #include "vmlinux.h"
 
