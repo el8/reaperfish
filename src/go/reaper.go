@@ -1360,18 +1360,18 @@ func PrintData(o *output) {
 }
 
 // Total HV consumption including everything
-func GetHVData() (error) {
+func GetHVData() {
 	// cgroup summary is not working so use diskstats for md1 instead
-	// TODO: broken on new HVs, check if it works with v2!
 	var rd, wr, rdops, wrops uint64
 	var err error
 
-	if cgroupVersion == 2 {
-		rd, wr, rdops, wrops, err = ReadIOServiceFilev2("/sys/fs/cgroup/", "", blkioServiced)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: reading total stats for HV\n")
-			return nil
-		}
+	if cgroupVersion != 2 {
+		return
+	}
+
+	rd, wr, rdops, wrops, err = ReadIOServiceFilev2("/sys/fs/cgroup/", "", blkioServiced)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: reading total stats for HV\n")
 	}
 
 	if HV_global.usable == true {
@@ -1411,7 +1411,6 @@ func GetHVData() (error) {
 	HV_global.last.write_ops = wrops
 	HV_global.timestamp = time.Now()
 	HV_global.usable = true
-	return nil
 }
 
 // implement sort interfaces for process_info
@@ -1962,10 +1961,7 @@ func main() {
 		}
 		*/
 
-		err = GetHVData()
-		if err != nil {
-			panic("Error GetHVData:" + err.Error())
-		}
+		GetHVData()
 
 		if !optMonitor {
 			CheckLatencyTarget()
