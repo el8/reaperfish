@@ -1313,10 +1313,15 @@ func PrintData(o *output) {
 			fmt.Fprintf(os.Stderr, "%4d %s / %4d %s", rdelta, rformat, wdelta, wformat)
 
 			fmt.Fprintf(os.Stderr, "\n\tpercs [%4d/%4d]: ", o.rd_perc, o.wr_perc)
-			fmt.Fprintf(os.Stderr, "\t p50: %d/%d \t p90: %d/%d \t p99: %d/%d",
-				o.rd_p50, o.wr_p50,
-				o.rd_p90, o.wr_p90,
-				o.rd_p99, o.wr_p99)
+			rdelta, rformat = formatTime(o.rd_p50)
+			wdelta, wformat = formatTime(o.wr_p50)
+			fmt.Fprintf(os.Stderr, "\t p50: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
+			rdelta, rformat = formatTime(o.rd_p90)
+			wdelta, wformat = formatTime(o.wr_p90)
+			fmt.Fprintf(os.Stderr, "\t p90: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
+			rdelta, rformat = formatTime(o.rd_p99)
+			wdelta, wformat = formatTime(o.wr_p99)
+			fmt.Fprintf(os.Stderr, "\t p99: %d %s / %d %s", rdelta, rformat, wdelta, wformat)
 
 			fmt.Fprintf(os.Stderr, "\t\t%6d", o.bs_avg)
 			fmt.Fprintf(os.Stderr, "\n\n")
@@ -1729,8 +1734,13 @@ func printLatencyStats() () {
 	} else {
 		lat_write_avg = 0
 	}
-	fmt.Fprintf(os.Stderr, "\t\tread-events:  %-9d\t ⌀-read-lat: %d µs\t\tmax-read-lat: %d µs\n", lat.read_nr, lat_read_avg, lat.read_max)
-	fmt.Fprintf(os.Stderr, "\t\twrite-events: %-9d\t ⌀-write-lat: %d µs\t\tmax-write-lat: %d µs\n", lat.write_nr, lat_write_avg, lat.write_max)
+
+	avg, afmt := formatTime(lat_read_avg)
+	max, mfmt := formatTime(lat.read_max)
+	fmt.Fprintf(os.Stderr, "\t\tread-events:  %-9d\t ⌀-read-lat: %d %s\t\tmax-read-lat: %d %s\n", lat.read_nr, avg, afmt, max, mfmt)
+	avg, afmt = formatTime(lat_write_avg)
+	max, mfmt = formatTime(lat.write_max)
+	fmt.Fprintf(os.Stderr, "\t\twrite-events: %-9d\t ⌀-write-lat: %d %s\t\tmax-write-lat: %d %s\n", lat.write_nr, avg, afmt, max, mfmt)
 
 	// why can't go have a proper memset?
 	lat.read_total = 0
