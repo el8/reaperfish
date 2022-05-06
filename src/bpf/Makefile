@@ -14,11 +14,7 @@ LINUX_KERNEL_VERSION := $(shell uname -r)
 
 $(OBJS):  %.o:%.c
 	$(CLANG) -D__KERNEL__ -D__ASM_SYSREG_H -D__BPF_TRACING__ \
-		-Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wno-unknown-attributes \
-		-Wno-int-to-void-pointer-cast -Wno-implicit-function-declaration -Wno-int-conversion \
-		-Wno-gnu-variable-sized-type-not-at-end \
-		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option \
+		-Wno-unknown-attributes \
 		-fno-stack-protector -fno-jump-tables -fno-unwind-tables -fno-asynchronous-unwind-tables \
 		-xc \
 		-I $(BUILDDIR) \
