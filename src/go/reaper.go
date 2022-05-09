@@ -30,6 +30,7 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/features"
 )
 
 const (
@@ -262,6 +263,9 @@ func run_bpf_log() {
 	consts := map[string]interface{} {
 		"linux_kernel_version": kver,
         }
+
+	kver, err = features.LinuxVersionCode()
+	fmt.Fprintf(os.Stderr, "builtin: %d\n", kver)
 
         if err := spec.RewriteConstants(consts); err != nil {
                 panic("error RewriteConstants:" + err.Error())
