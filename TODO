@@ -42,7 +42,24 @@ Bugs/TODO's
 - get total/HV number als from BPF (to make it consistent (after fixing the bugs)) and remove cgroup code
 - improve process names, /proc/pid/stat instead of BPF shows firefox instead of glean.dispatche
 - run log and see if we catch all relevant IO
+- kernel struct flavors not working:
+  36: (15) if r1 == 0x0 goto pc+103
+  R0=inv(id=0) R1_w=inv(id=0) R6=ctx(id=0,off=0,imm=0) R7=inv(id=1) R8=map_value(id=0,off=0,ks=8,vs=8,imm=0) R10=fp0 fp-8=mmmmmmmm fp-16=mmmmmmmm fp-24=00000000 fp-32=00000000 fp-40=00000000 fp-48=00000000 fp-56=00000000 fp-64=00000000 fp-72=00000000 fp-80=00000000 fp-88_w=mmmmmmmm fp-96=00000000 fp-104=00000000 fp-112=00000000 fp-120=00000000 fp-128=00000000
+  ; struct gendisk *disk = get_disk(bio);
+  37: (79) r3 = *(u64 *)(r10 -16)
+  ; if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
+  38: (18) r1 = 0xffff94c5a9793910
+  40: (61) r1 = *(u32 *)(r1 +0)
+   R0=inv(id=0) R1_w=map_value(id=0,off=0,ks=4,vs=4,imm=0) R3_w=inv(id=0) R6=ctx(id=0,off=0,imm=0) R7=inv(id=1) R8=map_value(id=0,off=0,ks=8,vs=8,imm=0) R10=fp0 fp-8=mmmmmmmm fp-16=mmmmmmmm fp-24=00000000 fp-32=00000000 fp-40=00000000 fp-48=00000000 fp-56=00000000 fp-64=00000000 fp-72=00000000 fp-80=00000000 fp-88_w=mmmmmmmm fp-96=00000000 fp-104=00000000 fp-112=00000000 fp-120=00000000 fp-128=00000000
+  41: (b7) r2 = 330496
+  ; if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
+  42: (2d) if r2 > r1 goto pc+9
 
+from 42 to 52: R0=inv(id=0) R1=inv(id=0,umax_value=330495,var_off=(0x0; 0x7ffff)) R2=inv330496 R3=inv(id=0) R6=ctx(id=0,off=0,imm=0) R7=inv(id=1) R8=map_value(id=0,off=0,ks=8,vs=8,imm=0) R10=fp0 fp-8=mmmmmmmm fp-16=mmmmmmmm fp-24=00000000 fp-32=00000000 fp-40=00000000 fp-48=00000000 fp-56=00000000 fp-64=00000000 fp-72=00000000 fp-80=00000000 fp-88=mmmmmmmm fp-96=00000000 fp-104=00000000 fp-112=00000000 fp-120=00000000 fp-128=00000000
+; bdev = BPF_CORE_READ(bio, bi_bdev);
+52: (85) call unknown#195896080
+invalid func unknown#195896080
+processed 157 insns (limit 1000000) max_states_per_insn 0 total_states 11 peak_states 11 mark_read 8
 
 Planned features
 ----------------
