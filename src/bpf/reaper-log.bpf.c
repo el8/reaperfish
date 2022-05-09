@@ -115,11 +115,6 @@ int BPF_PROG(trace_bio_done, struct request_queue *q, struct bio *bio)
 	struct taskinfo_t *ti;
 	u64 *tsp, *lenp, delta;
 
-	// Need to keep at least one of these globals to avoid elimination
-	// and subsequent panic: error RewriteConstants:missing .rodata section
-	if (!linux_kernel_version)
-		bpf_printk("error: missing kernel version\n");
-
 	// fetch timestamp and calculate delta
 	tsp = bpf_map_lookup_elem(&bio_start, &bio);
 	if (!tsp) {
