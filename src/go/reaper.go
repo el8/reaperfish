@@ -140,56 +140,6 @@ func name_goroutine(name string) {
 	}
 }
 
-// I'm soo glad golang is easier than C...
-func getKernelVersion() (int, int, int, error) {
-	var (
-		uts                  syscall.Utsname
-		kernel, major, minor int
-		err                  error
-	)
-
-	if err := syscall.Uname(&uts); err != nil {
-		return 0, 0, 0, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	tmp := strings.SplitN(string(release), "-", 2)
-	tmp2 := strings.SplitN(tmp[0], ".", 3)
-
-	if len(tmp2) > 0 {
-		kernel, err = strconv.Atoi(tmp2[0])
-		if err != nil {
-			return 0, 0, 0, err
-		}
-	}
-
-	if len(tmp2) > 1 {
-		major, err = strconv.Atoi(tmp2[1])
-		if err != nil {
-			return 0, 0, 0, err
-		}
-	}
-
-	if len(tmp2) > 2 {
-		minor, err = strconv.Atoi(tmp2[2])
-		if err != nil {
-			return 0, 0, 0, err
-		}
-	}
-
-	return kernel, major, minor, nil
-}
-
 func detectProcessType(pid int32, comm string) process_type {
 	// check if pid is a kernel thread: /proc/pid/stat [8] flag: 0x00200000 -> Bit21
 	kthread, err := ReadStatFile("/proc/", fmt.Sprintf("%d", pid), "/stat")
@@ -255,22 +205,15 @@ func run_bpf_log() {
 
 	}
 
-	maj, min, sub, err := getKernelVersion()
-	if err != nil {
-		panic("Error getKernelVersion");
-	}
-	var kver uint32 = uint32(maj * 65536 + min * 256 + sub)
+	kver, err := features.LinuxVersionCode()
 	consts := map[string]interface{} {
 		"linux_kernel_version": kver,
-        }
-
-	kver, err = features.LinuxVersionCode()
-	fmt.Fprintf(os.Stderr, "builtin: %d\n", kver)
+	}
 
         if err := spec.RewriteConstants(consts); err != nil {
                 panic("error RewriteConstants:" + err.Error())
         } else {
-		fmt.Fprintf(os.Stderr, "Set kernel version to: %d.%d.%d\n", maj, min, sub)
+		fmt.Fprintf(os.Stderr, "Detected kernel version: %d.%d.%d\n", kver >> 16, (kver >> 8) & 255, kver & 255)
 	}
 
 	coll, err := ebpf.NewCollection(spec)
