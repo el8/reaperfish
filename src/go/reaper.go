@@ -1652,6 +1652,7 @@ var target_lat_write_avg uint64
 var manual_lat_read_avg int
 var manual_lat_write_avg int
 
+var def_device string
 var def_major int64
 var def_minor int64
 
@@ -1775,16 +1776,27 @@ func PrintIOLimits() {
 	}
 }
 
-// TODO: pass device from arg
 func DetectDevice() (error) {
-	// check device is block device
-	//stat := syscall.Stat_t{}
-	//_ = syscall.Stat(target, &stat)
+	if def_device == "" {
+		panic("Error: need to specify a target device\n")
+	}
 
-	//def_major = int64(stat.Rdev / 256)
-	//def_minor = int64(stat.Rdev % 256)
+	stat := syscall.Stat_t{}
+	_ = syscall.Stat(def_device, &stat)
 
-	fmt.Fprintf(os.Stderr, "Target partition default major:minor: %d:%d\n", def_major, def_minor)
+	def_major = int64(stat.Rdev / 256)
+	def_minor = int64(stat.Rdev % 256)
+
+	fmt.Fprintf(os.Stderr, "Target device major:minor: %d:%d\n", def_major, def_minor)
+
+	// check that device is block device
+	if stat.Mode & syscall.S_IFMT != syscall.S_IFBLK {
+		panic("Error: target is not a block device")
+	}
+
+	if def_major == 0 {
+		panic("Error: invalid target device")
+	}
 	return nil
 }
 
@@ -1812,8 +1824,7 @@ func main() {
 	flag.BoolVar(&optTraceBio, "trace-bio", false, "Bio based tracing (md device)")
 	flag.BoolVar(&optBPFHist, "histogram-mode", false, "Aggregate data in histograms")
 	flag.IntVar(&cycle_secs, "secs", 10, "Delay between updates in seconds")
-	flag.Int64Var(&def_major, "major", 8, "Target device major")
-	flag.Int64Var(&def_minor, "minor", 0, "Target device minor")
+	flag.StringVar(&def_device, "device", "", "Target device or partition (e.g. /dev/sda)")
 	flag.IntVar(&manual_lat_read_avg, "target-read-lat", 100000, "Target average read latency in microseconds")
 	flag.IntVar(&manual_lat_write_avg, "target-write-lat", 100000, "Target average write latency in microseconds")
 	flag.Parse()

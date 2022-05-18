@@ -15,6 +15,11 @@ o Ubuntu impish (21.10):
   mkdir build
   make
 
+o Usage (no install yet)
+
+  cd build
+  sudo ./reaperfish -device /dev/nvme0n1p1
+
 
 o Optional Docker build instructions:
 
