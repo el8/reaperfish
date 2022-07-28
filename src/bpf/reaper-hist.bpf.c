@@ -90,9 +90,6 @@ static __always_inline u64 log2l(u64 v)
                 return log2(v);
 }
 
-#define PT_REGS_PARM1(x) ((x)->di)
-#define PT_REGS_PARM2(x) ((x)->si)
-
 // hashes for bio tracking
 
 // TODO: structify
