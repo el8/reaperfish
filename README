@@ -20,6 +20,8 @@ o Usage (no install yet)
   cd build
   sudo ./reaperfish -device /dev/nvme0n1p1
 
+  Make sure to pick the correct device, e.g. if you want to monitor IO on /home you need to pick whatever mount
+  or lsblk lists for that device.
 
 o Optional Docker build instructions:
 
