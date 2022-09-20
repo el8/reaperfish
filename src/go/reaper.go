@@ -30,7 +30,7 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
-	"github.com/cilium/ebpf/features"
+	//"github.com/cilium/ebpf/features"
 )
 
 const (
@@ -205,6 +205,7 @@ func run_bpf_log() {
 
 	}
 
+	/*
 	kver, err := features.LinuxVersionCode()
 	consts := map[string]interface{} {
 		"linux_kernel_version": kver,
@@ -215,6 +216,7 @@ func run_bpf_log() {
         } else {
 		fmt.Fprintf(os.Stderr, "Detected kernel version: %d.%d.%d\n", kver >> 16, (kver >> 8) & 255, kver & 255)
 	}
+	*/
 
 	coll, err := ebpf.NewCollection(spec)
 	if err != nil {
