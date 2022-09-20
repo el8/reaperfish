@@ -109,15 +109,15 @@ struct bio___v510 {
 struct gendisk *get_disk(struct bio *bio)
 {
 	struct block_device *bdev;
-	struct gendisk *disk;
+	struct gendisk *disk = NULL;
 
 	// 309dca309fc39a9e3c31b916393b74bd174fd74e
-	if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
+	//if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
+	if (bpf_core_field_exists(bio->bi_bdev)) {
 		bdev = BPF_CORE_READ(bio, bi_bdev);
 		disk = BPF_CORE_READ(bdev, bd_disk);
-	} else {
-		//disk = BPF_CORE_READ((struct bio___v510 *) bio, bi_disk);
-		disk = NULL;
+	} else if (bpf_core_field_exists(((struct bio___v510 *)bio)->bi_disk)) {
+		disk = BPF_CORE_READ((struct bio___v510 *) bio, bi_disk);
 	}
 	return disk;
 }
