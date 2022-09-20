@@ -79,45 +79,17 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } bio_len SEC(".maps");
 
-struct bio___v510 {
-	struct bio *bi_next;
-	struct gendisk *bi_disk;
-	unsigned int bi_opf;
-	short unsigned int bi_flags;
-	short unsigned int bi_ioprio;
-	short unsigned int bi_write_hint;
-	blk_status_t bi_status;
-	u8 bi_partno;
-	atomic_t __bi_remaining;
-	struct bvec_iter bi_iter;
-	bio_end_io_t *bi_end_io;
-	void *bi_private;
-	struct blkcg_gq *bi_blkg;
-	struct bio_issue bi_issue;
-	u64 bi_iocost_cost;
-	union {
-		struct bio_integrity_payload *bi_integrity;
-	};
-	short unsigned int bi_vcnt;
-	short unsigned int bi_max_vecs;
-	atomic_t __bi_cnt;
-	struct bio_vec *bi_io_vec;
-	struct bio_set *bi_pool;
-	struct bio_vec bi_inline_vecs[0];
-};
-
 struct gendisk *get_disk(struct bio *bio)
 {
 	struct block_device *bdev;
-	struct gendisk *disk;
+	struct gendisk *disk = NULL;
 
 	// 309dca309fc39a9e3c31b916393b74bd174fd74e
-	if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
+	if (bpf_core_field_exists(bio->bi_disk)) {
+		disk = BPF_CORE_READ(bio, bi_disk);
+	} else if (bpf_core_field_exists(bio->bi_bdev)) {
 		bdev = BPF_CORE_READ(bio, bi_bdev);
 		disk = BPF_CORE_READ(bdev, bd_disk);
-	} else {
-		//disk = BPF_CORE_READ((struct bio___v510 *) bio, bi_disk);
-		disk = NULL;
 	}
 	return disk;
 }
