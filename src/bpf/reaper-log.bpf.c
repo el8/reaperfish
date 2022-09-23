@@ -109,7 +109,7 @@ struct bio___v510 {
 struct gendisk *get_disk(struct bio *bio)
 {
 	struct block_device *bdev;
-	struct gendisk *disk = NULL;
+	struct gendisk *disk;
 
 	// 309dca309fc39a9e3c31b916393b74bd174fd74e
 	//if (linux_kernel_version >= KERNEL_VERSION(5, 11, 0)) {
@@ -118,6 +118,8 @@ struct gendisk *get_disk(struct bio *bio)
 		disk = BPF_CORE_READ(bdev, bd_disk);
 	} else if (bpf_core_field_exists(((struct bio___v510 *)bio)->bi_disk)) {
 		disk = BPF_CORE_READ((struct bio___v510 *) bio, bi_disk);
+	} else {
+		bpf_printk("error disk struct not present\n");
 	}
 	return disk;
 }
